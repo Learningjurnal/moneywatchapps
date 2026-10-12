@@ -3296,6 +3296,135 @@ Tulis refleksi 2-4 kalimat bahasa Indonesia: apakah sinyal ini terbukti benar, s
   return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
 });
 
+// POST /api/ai/trade-post-mortem — Institutional Post-Mortem & Self-Critique Engine
+// Menerima metrik trade yang baru saja ditutup (harga, return, rMultiple, alasan exit, regime, MFE/MAE),
+// dan meminta Gemini (dengan fallback Claude & template deterministik) untuk menghasilkan evaluasi
+// objektif 3-titik: lesson (pelajaran), mistake (deviasi/kesalahan), dan improvement (taktik perbaikan).
+app.post('/api/ai/trade-post-mortem', aiRateLimiter, async (req, res) => {
+  const {
+    ticker,
+    strategy,
+    entryPrice,
+    exitPrice,
+    returnPct,
+    rMultiple,
+    result,
+    exitReason,
+    regimeAtEntry,
+    regimeAtExit,
+    thesis,
+    mfePct,
+    maePct
+  } = req.body || {};
+
+  if (!ticker || typeof entryPrice !== 'number' || typeof exitPrice !== 'number' || typeof returnPct !== 'number' || !result) {
+    return res.status(400).json({ success: false, error: 'ticker, entryPrice, exitPrice, returnPct, dan result wajib diisi.' });
+  }
+
+  function templatePostMortem() {
+    let lesson, mistake, improvement;
+    const stratName = strategy || 'Trend Following';
+    const regLabel = regimeAtExit || regimeAtEntry || 'pasar';
+    if (exitReason === 'TAKE PROFIT') {
+      lesson = `Target profit ${ticker} tercapai pada Rp ${Math.round(exitPrice)} (+${returnPct.toFixed(2)}%, ${rMultiple || 0}R) sesuai rencana awal.`;
+      mistake = 'Tidak ada — eksekusi disiplin sesuai parameter take profit yang direncanakan.';
+      improvement = 'Pertimbangkan trailing stop untuk menangkap kelanjutan tren di luar target awal jika momentum volume masih kuat.';
+    } else if (exitReason === 'STOP LOSS') {
+      lesson = `Stop loss ${ticker} terpicu pada Rp ${Math.round(exitPrice)} (${returnPct.toFixed(2)}%) — risiko dibatasi sesuai batas 1% modal.`;
+      mistake = result === 'LOSS' ? `Setup ${stratName} tertekan pembalikan arah di regime ${regLabel}; perlu verifikasi konfirmasi sinyal sebelum entry.` : '-';
+      improvement = `Evaluasi apakah jarak stop loss terlalu ketat relatif terhadap volatilitas ATR emiten ${ticker} di regime ${regLabel}.`;
+    } else if (exitReason === 'SIGNAL EXIT') {
+      lesson = `Posisi ${ticker} ditutup awal berdasarkan sinyal exit Confluence Engine sebelum menyentuh SL/TP.`;
+      mistake = result === 'LOSS' ? 'Entry mungkin terlalu dini relatif terhadap kekuatan tren saat itu.' : '-';
+      improvement = 'Bandingkan pergerakan harga pasca-exit untuk mengukur apakah early exit menghemat kerugian atau memotong pemulihan.';
+    } else {
+      lesson = `Posisi ${ticker} ditutup manual oleh pengguna pada Rp ${Math.round(exitPrice)} (${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%).`;
+      mistake = '-';
+      improvement = 'Pertahankan disiplin eksekusi trading otomatis dan hindari intervensi manual tanpa bukti pelemahan struktur harga.';
+    }
+    return { lesson, mistake, improvement };
+  }
+
+  const prompt = `Anda adalah Institutional Post-Mortem AI Trading Analyst. Analisis hasil transaksi paper trading yang BARU SAJA DITUTUP untuk menghasilkan evaluasi pembelajaran objektif (bukan rekomendasi baru, jangan sarankan beli/jual saham baru).
+
+Data Transaksi:
+- Emiten: ${ticker}
+- Strategi: ${strategy || 'Trend Following'}
+- Harga Entry: Rp ${entryPrice}
+- Harga Exit: Rp ${exitPrice}
+- Return Bersih: ${returnPct.toFixed(2)}%
+- R-Multiple: ${rMultiple != null ? rMultiple + 'R' : 'N/A'}
+- Hasil: ${result}
+- Alasan Exit: ${exitReason || 'MANUAL'}
+- Regime Entry: ${regimeAtEntry || 'UNKNOWN'}
+- Regime Exit: ${regimeAtExit || 'UNKNOWN'}
+${mfePct != null ? `- Maximum Favorable Excursion (MFE): +${mfePct}%` : ''}
+${maePct != null ? `- Maximum Adverse Excursion (MAE): -${maePct}%` : ''}
+${thesis ? `- Tesis Saat Entry: ${thesis}` : ''}
+
+Berikan output HANYA dalam JSON valid (tanpa markdown fence atau komentar):
+{
+  "lesson": "Pelajaran objektif 1-2 kalimat bahasa Indonesia tentang apa yang bekerja atau gagal pada pergerakan harga saham ini",
+  "mistake": "Identifikasi deviasi/kesalahan 1-2 kalimat (tulis '-' jika eksekusi disiplin)",
+  "improvement": "Rekomendasi adaptasi taktis 1-2 kalimat untuk parameter/filter berikutnya"
+}`;
+
+  function parsePostMortemJson(rawText) {
+    if (!rawText) return null;
+    const clean = String(rawText).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const first = clean.indexOf('{');
+    const last = clean.lastIndexOf('}');
+    if (first === -1 || last === -1) return null;
+    try {
+      const parsed = JSON.parse(clean.substring(first, last + 1));
+      if (parsed && typeof parsed.lesson === 'string') {
+        return {
+          lesson: parsed.lesson.trim(),
+          mistake: (typeof parsed.mistake === 'string' ? parsed.mistake : '-').trim(),
+          improvement: (typeof parsed.improvement === 'string' ? parsed.improvement : '-').trim()
+        };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // 1. Coba Gemini terlebih dahulu (Provider Utama)
+  if (getGeminiConfig()) {
+    try {
+      const { text, usedModel } = await callGeminiTextWithRetry(prompt, { timeoutMs: 12000, maxRetries: 1 });
+      const parsed = parsePostMortemJson(text);
+      if (parsed) {
+        return res.json({ success: true, ...parsed, model: usedModel });
+      }
+    } catch (geminiErr) {
+      console.warn('[Trade Post-Mortem] Gemini call failed, trying Claude backup:', geminiErr?.message || geminiErr);
+    }
+  }
+
+  // 2. Coba Claude (Provider Cadangan)
+  const ai = getAiClient();
+  if (ai) {
+    try {
+      const { response, usedModel } = await callClaudeWithRetry(
+        ai,
+        { max_tokens: 350, messages: [{ role: 'user', content: prompt }] },
+        { timeoutMs: 12000, maxRetries: 1 }
+      );
+      const text = claudeExtractText(response);
+      const parsed = parsePostMortemJson(text);
+      if (parsed) {
+        return res.json({ success: true, ...parsed, model: usedModel || CLAUDE_MODEL });
+      }
+    } catch (err) {
+      console.warn('[Trade Post-Mortem] Claude call failed, using template fallback:', err?.message || err);
+    }
+  }
+
+  // 3. Fallback template deterministik jika API AI offline/tidak tersedia
+  return res.json({ success: true, ...templatePostMortem(), model: 'template-fallback' });
+});
+
+
 
 // In-memory cache for external market data requests (TTL 60s for live quotes, 300s for historical)
 // Helper: SSRF & URL security guard

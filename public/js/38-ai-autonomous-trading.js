@@ -296,9 +296,20 @@
     var meta = _lookupTickerMeta(sig.ticker);
     var hasFund = sig.dataQuality && sig.dataQuality.fundamental;
 
-    var stratLabel = sig.trend === 'UPTREND' ? 'Trend Following (Uptrend)'
-      : sig.trend === 'DOWNTREND' ? 'Downtrend — Avoid/Wait'
-      : 'Range / Sideways Consolidation';
+    var stratLabel = 'Range / Sideways Consolidation';
+    if (sig.trend === 'UPTREND') {
+      if (sig.volRatio != null && sig.volRatio >= 1.5) {
+        stratLabel = 'Breakout Momentum (High Volume)';
+      } else if (sig.rsi14 != null && sig.rsi14 < 45) {
+        stratLabel = 'Pullback Rebound (Oversold)';
+      } else if (hasFund && sig.fundamentalScore >= 70) {
+        stratLabel = 'Quality Growth Trend';
+      } else {
+        stratLabel = 'Trend Following (Uptrend)';
+      }
+    } else if (sig.trend === 'DOWNTREND') {
+      stratLabel = 'Downtrend — Avoid/Wait';
+    }
 
     var evidence = [];
     if (sig.trend === 'UPTREND') {
@@ -823,6 +834,83 @@
     return record;
   }
 
+  // KALKULASI CANONICAL SKOR TERKALIBRASI ADAPTIF (compositeScore * regimeMult * stratMult)
+  function aiGetAdaptedScore(item) {
+    if (!item) return { rawScore: 0, adaptedScore: 0, regimeMult: 1.0, stratMult: 1.0, currentRegime: 'UNKNOWN' };
+    var rawScore = item.compositeScore != null ? item.compositeScore : 60;
+    var currentRegime = (typeof mwRegimeCode === 'function') ? mwRegimeCode() : 'UNKNOWN';
+    var weights = AI_TRADE_STATE.adaptiveWeights || {};
+    var regMult = (currentRegime && weights.regimeMultipliers && weights.regimeMultipliers[currentRegime] != null)
+      ? weights.regimeMultipliers[currentRegime]
+      : 1.0;
+    var stratMult = (weights.strategyMultipliers && item.strategy && weights.strategyMultipliers[item.strategy] != null)
+      ? weights.strategyMultipliers[item.strategy]
+      : 1.0;
+    var adaptedScore = Math.max(0, Math.min(100, Math.round(rawScore * regMult * stratMult)));
+    return {
+      rawScore: rawScore,
+      adaptedScore: adaptedScore,
+      regimeMult: regMult,
+      stratMult: stratMult,
+      currentRegime: currentRegime
+    };
+  }
+
+  // ASYNC ENRICHMENT: Mengirim data trade ke endpoint AI Post-Mortem untuk menghasilkan
+  // refleksi kontekstual mendalam per emiten (Gemini dengan fallback deterministik).
+  async function aiRequestAiPostMortemCritique(tradeId) {
+    if (typeof fetch !== 'function') return;
+    var p = AI_TRADE_STATE.paperAccount;
+    if (!p || !Array.isArray(p.closedTrades)) return;
+    var trade = p.closedTrades.find(function(t) { return t.id === tradeId; });
+    if (!trade) return;
+
+    try {
+      var resp = await fetch('/api/ai/trade-post-mortem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: trade.ticker,
+          strategy: trade.strategy,
+          entryPrice: trade.entryPrice,
+          exitPrice: trade.exitPrice,
+          returnPct: trade.returnPct,
+          rMultiple: trade.rMultiple,
+          result: trade.result,
+          exitReason: trade.exitReason,
+          regimeAtEntry: trade.regimeAtEntry,
+          regimeAtExit: trade.regimeAtExit,
+          thesis: trade.thesis,
+          mfePct: trade.mfePct,
+          maePct: trade.maePct
+        })
+      });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      if (data && data.success && data.lesson) {
+        trade.lesson = data.lesson;
+        if (data.mistake) trade.mistake = data.mistake;
+        if (data.improvement) trade.improvement = data.improvement;
+        trade.critiqueSource = data.model || 'AI';
+        savePaperAccountState();
+        scheduleAiCloudSync();
+        if (AI_TRADE_STATE.activeTab === 'journal' || AI_TRADE_STATE.activeTab === 'learning') {
+          if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+        }
+      }
+    } catch (_) {
+      // Best-effort enrichment: fallback deterministik yang sudah ada tetap aktif
+    }
+  }
+
+  // Interaktif: Tombol Audit Ulang AI dari UI Journal
+  async function aiReanalyzeTrade(tradeId) {
+    if (typeof showToast === 'function') showToast('⏳ Menjalankan audit post-mortem AI untuk transaksi ini...');
+    await aiRequestAiPostMortemCritique(tradeId);
+    if (typeof showToast === 'function') showToast('✅ Audit post-mortem AI selesai diperbarui.');
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+  }
+
   // AI PAPER TRADING — SUPABASE CLOUD SYNC (2026-09-11, user-requested)
   //
   // Everything above this point (paperAccount/hypotheses/decisionLog) used
@@ -1312,6 +1400,7 @@
       lesson: lesson,
       mistake: mistake,
       improvement: improvement,
+      critiqueSource: 'template-deterministic',
       // Item #4 groundwork — carried through from position-open time (see
       // aiOpenPositionFromSignal()). `|| null` for positions opened before
       // this field existed (backward compat) — aiExportTrainingDataset()
@@ -1326,6 +1415,9 @@
     recomputePaperStats();
     p.equityHistory.push({ date: new Date().toISOString(), equity: p.cash + p.openPositions.reduce(function(s, x) { return s + x.currentValue; }, 0) });
     savePaperAccountState();
+
+    // Trigger AI Institutional Post-Mortem Enrichment secara asinkron
+    aiRequestAiPostMortemCritique(pos.id);
 
     logDecision({
       type: 'ACTION',
@@ -1450,6 +1542,12 @@
     if (p.openPositions.some(function(x) { return x.ticker === ticker; })) {
       if (typeof showToast === 'function') showToast('Sudah ada posisi terbuka untuk ' + ticker + '.');
       return;
+    }
+
+    // Peringatan adaptif jika strategi ini sedang dalam penurunan performa historis
+    var adpOpening = aiGetAdaptedScore(sig);
+    if (adpOpening.adaptedScore < 60 && adpOpening.stratMult < 0.95 && typeof showToast === 'function') {
+      showToast('⚠️ Catatan Pembelajaran: Setup "' + sig.strategy + '" sedang tertekan (bobot ' + adpOpening.stratMult.toFixed(2) + 'x). Posisi tetap dibuka sesuai instruksi.');
     }
 
     // Re-fetch a fresh quote right before opening — the scan snapshot in
@@ -2086,7 +2184,7 @@
       + '          <th>Expected Value</th>'
       + '          <th>Entry / SL / TP</th>'
       + '          <th>R:R</th>'
-      + '          <th>AI Score</th>'
+      + '          <th>AI Score (Raw / Adaptif)</th>'
       + '          <th>Aksi</th>'
       + '        </tr>'
       + '      </thead>'
@@ -2097,6 +2195,11 @@
                      item.signal.includes('BUY') ? 'b-up' :
                      item.signal.includes('HOLD') ? 'b-amb' :
                      item.signal.includes('WATCH') ? 'b-accent' : 'b-dn';
+
+      var adpRow = aiGetAdaptedScore(item);
+      var isDiff = adpRow.adaptedScore !== adpRow.rawScore;
+      var rawCol = adpRow.rawScore >= 75 ? 'var(--green)' : adpRow.rawScore >= 50 ? 'var(--amber)' : 'var(--red)';
+      var adpCol = adpRow.adaptedScore >= 75 ? 'var(--green)' : adpRow.adaptedScore >= 50 ? 'var(--amber)' : 'var(--red)';
 
       html += '<tr>'
         + '<td style="font-family:var(--font-mono)">'
@@ -2129,7 +2232,10 @@
         + (item.entry > 0 ? ('E: ' + Number(item.entry).toLocaleString('id-ID') + '<br>SL: <span style="color:var(--red)">' + Number(item.sl).toLocaleString('id-ID') + '</span><br>TP: <span style="color:var(--green)">' + Number(item.tp1).toLocaleString('id-ID') + '</span>') : '<span style="color:var(--text3)">N/A (NO TRADE)</span>')
         + '</td>'
         + '<td style="font-family:var(--font-mono);font-weight:700">' + item.rrRatio + '</td>'
-        + '<td><strong style="color:' + (item.compositeScore >= 75 ? 'var(--green)' : item.compositeScore >= 50 ? 'var(--amber)' : 'var(--red)') + '">' + item.compositeScore + '</strong>/100</td>'
+        + '<td>'
+        + '  <strong style="color:' + rawCol + '">' + adpRow.rawScore + '</strong>/100'
+        + (isDiff ? ('<div style="font-size:9.5px;color:var(--text3);margin-top:2px" title="Skor Terkalibrasi Hasil Pembelajaran (' + adpRow.stratMult.toFixed(2) + 'x strategi, ' + adpRow.regimeMult.toFixed(2) + 'x regime)">Adaptif: <strong style="color:' + adpCol + '">' + adpRow.adaptedScore + '</strong></div>') : '')
+        + '</td>'
         + '<td>'
         + '  <button class="btn btn-ghost btn-xs" onclick="aiSelectTicker(\'' + item.ticker + '\');aiSwitchTab(\'deep\')" style="font-size:10px;padding:3px 7px">Evidence ↗</button>'
         + '</td>'
@@ -2833,20 +2939,25 @@
     trades.forEach(function(t) {
       var isWin = t.result === 'WIN';
       var resCls = isWin ? 'b-up' : 'b-dn';
+      var srcBadge = t.critiqueSource && t.critiqueSource !== 'template-deterministic'
+        ? ('<span class="badge b-accent" style="font-size:9.5px;padding:2px 6px" title="Dievaluasi oleh model AI Institutional">🤖 ' + t.critiqueSource + '</span>')
+        : ('<span class="badge" style="font-size:9.5px;padding:2px 6px;color:var(--text3);border-color:var(--border)" title="Dievaluasi oleh Template Deterministik">⚙️ Deterministic</span>');
 
       html += ''
         + '<div style="background:var(--bg3);border:1px solid ' + (isWin ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)') + ';border-radius:10px;padding:16px">'
         + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
         + '    <div>'
         + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3)">' + t.entryDate + ' s.d ' + t.exitDate + ' · Ditutup: ' + (t.exitReason || 'MANUAL') + '</span>'
-        + '      <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
+        + '      <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '        ' + t.ticker + ' — ' + t.strategy
         + '        <span class="badge ' + resCls + '">' + t.result + ' (' + (t.returnPct >= 0 ? '+' : '') + t.returnPct + '% / ' + t.rMultiple + 'R)</span>'
+        + '        ' + srcBadge
         + '      </div>'
         + '    </div>'
-        + '    <div style="text-align:right">'
+        + '    <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
         + '      <div style="font-size:10px;color:var(--text3)">NET REALIZED PNL</div>'
         + '      <div style="font-size:16px;font-weight:800;font-family:var(--font-mono);color:' + (isWin ? 'var(--green)' : 'var(--red)') + '">' + (t.netPnL >= 0 ? '+' : '') + 'Rp ' + Number(t.netPnL).toLocaleString('id-ID') + '</div>'
+        + '      <button class="btn btn-ghost btn-xs" onclick="aiReanalyzeTrade(\'' + t.id + '\')" style="font-size:9.5px;padding:2px 6px;margin-top:2px;border-color:rgba(56,189,248,0.3);color:#38bdf8" title="Minta AI mengevaluasi ulang transaksi ini dengan Gemini">🤖 Re-Audit AI</button>'
         + '    </div>'
         + '  </div>'
 
@@ -3609,13 +3720,11 @@
     var candidates = AI_UNIVERSE.filter(function(x) {
       return x.signal && x.signal.includes('BUY') && !p.openPositions.some(function(o) { return o.ticker === x.ticker; });
     }).map(function(item) {
-      var stratMult = (AI_TRADE_STATE.adaptiveWeights && AI_TRADE_STATE.adaptiveWeights.strategyMultipliers && AI_TRADE_STATE.adaptiveWeights.strategyMultipliers[item.strategy]) || 1.0;
-      var rawScore = item.compositeScore || 60;
-      var adaptedScore = Math.round(rawScore * regimeMult * stratMult);
+      var adpCandidate = aiGetAdaptedScore(item);
       return {
         item: item,
-        adaptedScore: adaptedScore,
-        stratMult: stratMult
+        adaptedScore: adpCandidate.adaptedScore,
+        stratMult: adpCandidate.stratMult
       };
     });
 
@@ -3711,6 +3820,9 @@
   window.aiPromptSetCapital = aiPromptSetCapital;
   window.aiToggleAutoPilot = aiToggleAutoPilot;
   window.aiCalibrateAdaptiveWeights = aiCalibrateAdaptiveWeights;
+  window.aiGetAdaptedScore = aiGetAdaptedScore;
+  window.aiRequestAiPostMortemCritique = aiRequestAiPostMortemCritique;
+  window.aiReanalyzeTrade = aiReanalyzeTrade;
   window.aiRunAutonomousCycle = aiRunAutonomousCycle;
   window.renderAiCopyTrading = renderAiCopyTrading;
   window.aiFormatCopyTradingSignal = aiFormatCopyTradingSignal;

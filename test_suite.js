@@ -4739,6 +4739,70 @@ test('AI AUTONOMOUS TRADING: aiCalibrateAdaptiveWeights() dynamically adjusts we
   assert.strictEqual(weights.adaptationHistory.length, 2, 'adaptationHistory must record second calibration');
 });
 
+// ── TEST: Post-Mortem Self-Critique Engine Enhancements: aiGetAdaptedScore & Granular Strategies
+test('AI AUTONOMOUS TRADING: Post-Mortem Self-Critique Engine enhancements (adapted score & granular strategies)', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/function aiGetAdaptedScore\(/.test(fullSrc), 'aiGetAdaptedScore() must exist');
+  assert(/function aiRequestAiPostMortemCritique\(/.test(fullSrc), 'aiRequestAiPostMortemCritique() must exist');
+  assert(/function aiReanalyzeTrade\(/.test(fullSrc), 'aiReanalyzeTrade() must exist');
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    },
+    showToast: () => {},
+    mwSendBrowserNotification: () => {},
+    setTimeout: () => {}
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx);
+  vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js test load' });
+
+  // 1. aiGetAdaptedScore applies both regime & strategy multipliers
+  ctx.AI_TRADE_STATE.adaptiveWeights.strategyMultipliers['Breakout Momentum (High Volume)'] = 1.20;
+  ctx.AI_TRADE_STATE.adaptiveWeights.regimeMultipliers['BULL_TREND'] = 1.10;
+  ctx.mwRegimeCode = () => 'BULL_TREND';
+
+  const scored = ctx.aiGetAdaptedScore({
+    strategy: 'Breakout Momentum (High Volume)',
+    compositeScore: 70
+  });
+
+  assert.strictEqual(scored.rawScore, 70);
+  assert.strictEqual(scored.regimeMult, 1.10);
+  assert.strictEqual(scored.stratMult, 1.20);
+  assert.strictEqual(scored.adaptedScore, 92); // Math.round(70 * 1.10 * 1.20) = 92
+
+  // 2. aiGetAdaptedScore handles degraded strategy
+  ctx.AI_TRADE_STATE.adaptiveWeights.strategyMultipliers['Degraded Strat'] = 0.60;
+  const degraded = ctx.aiGetAdaptedScore({
+    strategy: 'Degraded Strat',
+    compositeScore: 70
+  });
+  assert.strictEqual(degraded.adaptedScore, 46); // Math.round(70 * 1.10 * 0.60) = 46
+
+  // 3. Fallback when strategy is uncalibrated (defaults to 1.0)
+  const neutral = ctx.aiGetAdaptedScore({
+    strategy: 'Uncalibrated Setup',
+    compositeScore: 65
+  });
+  assert.strictEqual(neutral.stratMult, 1.0);
+  assert.strictEqual(neutral.adaptedScore, 72); // Math.round(65 * 1.10 * 1.0) = 72
+});
+
+test('REGRESSION GUARD: POST /api/ai/trade-post-mortem route exists, validates inputs, and provides AI & deterministic critique', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.post\('\/api\/ai\/trade-post-mortem'/.test(fullSrc), 'POST /api/ai/trade-post-mortem route must exist');
+  assert(/templatePostMortem/.test(fullSrc), 'Deterministic template fallback must exist in trade-post-mortem route');
+  assert(/callGeminiTextWithRetry/.test(fullSrc), 'Gemini provider call must be supported in trade-post-mortem route');
+});
+
 // ── TEST: Copy Trading Signal Generator
 test('AI AUTONOMOUS TRADING: aiFormatCopyTradingSignal() generates actionable institutional signal card', () => {
   const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
