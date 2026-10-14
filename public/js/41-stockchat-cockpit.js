@@ -267,21 +267,11 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
   var changePct = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk)
     : ((typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0);
 
-  // FIX (2026-09-18, user-reported after full-codebase audit): this used to
-  // fabricate a full top-10 buyer/seller broker table from here down —
-  // hardcoded broker code lists (topBuyerCodes/topSellerCodes) and fixed
-  // percentage-weight arrays (buyerWeights/sellerWeights), then computed
-  // precise-looking Rupiah values/average prices from a seeded pseudo-
-  // random volume estimate. It WAS honestly labeled isSimulated:true, but
-  // a label doesn't make invented broker names/weights/values any less
-  // fabricated. This is the LAST-RESORT path — fetchBrokerSummaryData()
-  // already tried the real backend (which itself tries real Invezgo data
-  // first) and a real live price fetch, both unsuccessful — so instead of
-  // synthesizing a plausible-but-fake broker table, return an honest empty
-  // state (same pattern as the backend's generateBrokerSummaryTemplate(),
-  // lib/idx-data-engine.js).
+  // Honest empty state when backend and live price feeds are unavailable.
   return {
-    isSimulated: true,
+    isSimulated: false,
+    isAvailable: false,
+    quality: { status: 'UNAVAILABLE', source: 'client_fallback', reason: 'BROKER_FEED_UNAVAILABLE' },
     dataSource: 'Tidak tersedia (server & feed broker real tidak tersedia)',
     ticker: tk,
     timeframe: tf,
@@ -344,9 +334,7 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
     return STOCKCHAT_BROKER_DATA_CACHE[cacheKey];
   }
 
-  // 1. Try Backend API — via the shared raw cache (see
-  // MW_BROKER_SUMMARY_RAW_CACHE above) so switching to Stock Intel for the
-  // same ticker/timeframe reuses this fetch instead of repeating it.
+  // Backend API via shared raw cache.
   try {
     var data = await mwFetchBrokerSummaryRaw(tk, tf);
     if (data && data.success && data.data && data.data.price > 0) {
@@ -356,7 +344,7 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
     }
   } catch (err) {}
 
-  // 2. Fetch live quote from Yahoo Finance directly in browser if prices[tk] is missing
+  // Fallback quote when prices[tk] is missing.
   if (typeof prices === 'undefined' || !prices[tk] || prices[tk] <= 0) {
     try {
       await new Promise(function(resolve) {
@@ -398,7 +386,6 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
     } catch(e) {}
   }
 
-  // 3. Generate high-fidelity Bandarmology & Broker Flow with the accurate live market price
   var fallbackData = generateClientSideBrokerSummary(tk, tf);
   STOCKCHAT_BROKER_DATA_CACHE[cacheKey] = fallbackData;
   return fallbackData;

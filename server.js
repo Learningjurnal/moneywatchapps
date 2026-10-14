@@ -64,7 +64,7 @@ import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEn
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { runAutonomousMarketCycle, loadAutonomousAccountState, isIdxMarketOpen } from './lib/engine/autonomous-runner.js';
 import { getHypothesisCatalog, saveHypothesisCatalog, evaluateHypothesisStatistically } from './lib/engine/hypothesis-lab.js';
-import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
+import { logAuthMismatchTelemetry, enforceIdentityStage2, verifySupabaseSession } from './lib/auth-verify.js';
 import { getEconomicHealth, discoverBpsDatasets, getBpsStrategicIndicators } from './lib/economic-data-engine.js';
 import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
 
@@ -146,7 +146,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Helper formatting function for IDR
 function fmtIdr(n) {
   return Math.round(n || 0).toLocaleString('id-ID');
 }
@@ -5116,8 +5115,17 @@ app.get('/api/cron/autonomous-cycle', async (req, res) => {
   }
 });
 
-// POST /api/ai/autonomous-cycle — trigger siklus autonomous on-demand
-app.post('/api/ai/autonomous-cycle', async (req, res) => {
+// POST /api/ai/autonomous-cycle — trigger siklus autonomous on-demand (CRON_SECRET atau verified user session)
+app.post('/api/ai/autonomous-cycle', aiRateLimiter, async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  const isCronAuth = secret && authHeader === `Bearer ${secret}`;
+  if (!isCronAuth) {
+    const session = await verifySupabaseSession(req);
+    if (!session.verified) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Sesi valid atau CRON_SECRET diperlukan' });
+    }
+  }
   try {
     const force = Boolean(req.body?.force || req.query?.force === 'true');
     const result = await runAutonomousMarketCycle({ force });
@@ -5161,8 +5169,8 @@ app.get('/api/ai/hypotheses', (req, res) => {
   }
 });
 
-// POST /api/ai/hypotheses/test — menjalankan evaluasi statistik hipotesis kuantitatif
-app.post('/api/ai/hypotheses/test', async (req, res) => {
+// POST /api/ai/hypotheses/test — menjalankan evaluasi statistik hipotesis kuantitatif berbasis data empiris riil
+app.post('/api/ai/hypotheses/test', aiRateLimiter, async (req, res) => {
   try {
     const { hypothesisId, returnSamples, benchmarkReturnPct } = req.body || {};
     if (!hypothesisId) {
@@ -5175,10 +5183,19 @@ app.post('/api/ai/hypotheses/test', async (req, res) => {
     }
 
     const hypo = catalog[idx];
-    const samples = Array.isArray(returnSamples) && returnSamples.length >= 10
-      ? returnSamples
-      : [3.8, 4.2, -1.2, 5.5, 2.1, -0.8, 6.3, 1.9, 4.0, -1.5, 2.8, 3.1]; // Sampel empiris jika tidak disediakan kustom
-    
+    let samples = Array.isArray(returnSamples) ? returnSamples : null;
+
+    // Jika returnSamples tidak dikirim oleh klien, ambil dari closed trades riil akun autonomous
+    if (!samples || samples.length < 10) {
+      const state = loadAutonomousAccountState();
+      const closed = Array.isArray(state.closedTrades) ? state.closedTrades : [];
+      if (closed.length >= 10) {
+        samples = closed.map(t => Number(t.realizedPnLPct || t.returnPct || 0));
+      }
+    }
+
+    // AGENTS.md Aturan #1 & #28: Larangan keras memakai data sintetis/karangan.
+    // Jika sampel empiris riil < 10, laporkan status DATA_INSUFFICIENT secara jujur.
     const evaluated = evaluateHypothesisStatistically(hypo, samples, benchmarkReturnPct || 0.0);
     catalog[idx] = evaluated;
     saveHypothesisCatalog(catalog);
@@ -5377,7 +5394,7 @@ app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
   }
 });
 
-// ── Indonesia Economic Data Engine (BI + BPS) ──
+// Indonesia Economic Data Engine (BI + BPS)
 // STATUS (2026-09-28): scaffolding — see lib/economic-data-engine.js and
 // lib/providers/bi-client.js/bps-client.js for the full explanation.
 // No indicator data (inflasi/PDB/ekspor-impor/JISDOR/Kurs Transaksi) is

@@ -1,24 +1,7 @@
 // Modal state and controls
 var modalType='';
 
-// Shared double-submit guard for every modal "Konfirmasi/Simpan" button
-// (Beli/Jual saham, crypto, ETF, reksa dana, Setor/Tarik, Penyesuaian
-// Saldo, Biaya, Dividen). A fast double-click/double-tap dispatches two
-// separate, fully-completed synchronous click-handler runs — JS's
-// single-threaded event loop means they never literally overlap, so an
-// in-function "isSubmitting" flag reset at the end of the function can't
-// catch it (the first call has already finished, flag back to false,
-// before the second call even starts). The guard has to be a short
-// timestamp cooldown instead — same pattern as the auto-retry cooldowns
-// in 27-stockintel.js/38-ai-autonomous-trading.js (INCIDENT_LOG.md #2/#3),
-// applied here against a different failure mode: not an infinite loop,
-// but a single duplicate transaction/mutation with no automatic dedup
-// (unlike submitDivModal(), which already has isDividendAlreadyRecorded()
-// — see the FIX AUDIT comment there for the dividend case of this exact
-// class of bug). Call _modalSubmitAllowed() once, right before the actual
-// addTx()/addRdn()/etc. write, after all field validation has passed —
-// a validation failure (missing/invalid input) must never consume the
-// cooldown, so the user can fix the field and retry immediately.
+// Cooldown timestamp prevents duplicate modal submissions from rapid clicks.
 var _lastModalSubmitAt = 0;
 var MODAL_SUBMIT_COOLDOWN_MS = 800;
 function _modalSubmitAllowed(){

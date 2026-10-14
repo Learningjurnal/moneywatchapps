@@ -262,12 +262,7 @@ function getPortfolio(){
       p.buyNet += netVal;
     } else {
       var sold = txShares;
-      // Guard against a SELL landing on an empty/never-bought position with
-      // sold===0 (only reachable with corrupted/hand-edited storage data —
-      // every real entry point, manual/edit/bulk-import, already rejects
-      // lot<=0 — but tx.gross/0 would otherwise produce NaN/Infinity here
-      // and corrupt p.cost for the rest of this reduce). Matches the same
-      // p.qty>0 ? ... : 0 pattern already used by getCryptoPortfolio().
+      // Guard against zero-share division to prevent NaN cost basis.
       var avg = p.shares > 0 ? (p.cost / p.shares) : 0;
       var avgNetBasis = p.shares > 0 ? (p.netCost / p.shares) : 0;
       p.lot = Math.max(0, p.lot - tx.lot);
@@ -337,7 +332,7 @@ function calcPortfolioDayGain(){
     if (prev > 0) {
       sahamDayGain += (cur - prev) * shares;
       sahamPrevMv += prev * shares;
-    } else if (chgPct !== 0) {
+    } else if (chgPct !== 0 && (1 + (chgPct / 100)) > 0) {
       var prevVal = mv / (1 + (chgPct / 100));
       sahamDayGain += (mv - prevVal);
       sahamPrevMv += prevVal;
@@ -971,14 +966,7 @@ function recalculateAllStoredData(silent){
 }
 
 function calcRdnBalance(account){
-  // FIX AUDIT F3: sebelumnya fungsi ini "percaya" variabel cache rdnBalance
-  // apa adanya (hanya menghitung ulang jika kebetulan 0) — model kepercayaan
-  // BEDA dari rebuildRdnBalance() yang SELALU menghitung ulang penuh. Dua
-  // fungsi berbeda untuk satu nilai yang sama = pelanggaran Single Source of
-  // Truth (lihat AUDIT_FINANCIAL_ENGINE.md Temuan #3). Sekarang calcRdnBalance
-  // HANYA memanggil rebuildRdnBalance() dan mengembalikan hasilnya — satu
-  // jalur kebenaran untuk keduanya. Aman secara performa: rdnMutations biasa
-  // berjumlah puluhan-ratusan baris, bukan jutaan.
+  // Single canonical calculation: delegate to rebuildRdnBalance().
   if(!Array.isArray(rdnMutations)) rdnMutations = [];
   if(typeof rebuildRdnBalance === 'function'){
     rebuildRdnBalance();

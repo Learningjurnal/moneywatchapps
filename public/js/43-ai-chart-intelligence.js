@@ -182,7 +182,6 @@ function buildAiSharedMarketContext(ticker, timeframe) {
   };
 }
 
-// Helper: Technical Indicators
 function calculateAiSMA(prices, period) {
   var res = [];
   for (var i = 0; i < prices.length; i++) {
@@ -239,7 +238,6 @@ function calculateAiBaseSupportResistance(ohlcv) {
   };
 }
 
-// Helper: Exponential Moving Average
 function calculateAiEMA(prices, period) {
   if (!prices || prices.length < period) return [];
   var k = 2 / (period + 1);
@@ -260,7 +258,6 @@ function calculateAiEMA(prices, period) {
   return ema;
 }
 
-// Helper: MACD (12, 26, 9) Momentum Engine
 function calculateAiMacd(prices) {
   if (!prices || prices.length < 26) {
     return { macd: 0, signal: 0, hist: 0, status: 'NEUTRAL' };

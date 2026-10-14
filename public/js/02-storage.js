@@ -37,10 +37,9 @@ function _authHeaders(extra) {
   return h;
 }
 
-// Helper bersama: id berikutnya yang AMAN untuk sebuah array {id,...}
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 
-// ── Multi-Tenant Storage Key Resolver ──
+// Multi-tenant storage key resolver
 function getUserStorageKey(prefix, overrideUid) {
   var targetUid = overrideUid;
   if (!targetUid && typeof getFirestoreUserUid === 'function') {
@@ -66,7 +65,7 @@ function getUserStorageKey(prefix, overrideUid) {
 }
 window.getUserStorageKey = getUserStorageKey;
 
-// ── Pure In-Memory Reset (Zero Residual State) ──
+// Reset user portfolio in-memory state
 function resetUserPortfolioState() {
   transactions = [];
   rdnMutations = [];
