@@ -196,6 +196,60 @@ await test('regime dinamis: BEAR_TREND atau RISK_OFF membatasi status STRONG ke 
   assert.strictEqual(rBull.adaptedScore, 100); // clamped at 100
 });
 
+await test('kontradiksi harga: SBMA (-14.58%) pada momentum-candidate ditolak ke REJECT demi pelestarian modal', () => {
+  const momDef = { id: 'momentum-candidate', weights: { HIGH_BID_OFFER: 0.375, NO_SELL: 0.3125, CLOSE_HIGH: 0.1875, VOLUME: 0.125 }, mandatoryConditions: ['HIGH_BID_OFFER', 'NO_SELL'], scoreBands: { strong: 80, qualified: 70, watch: 55 } };
+  // Skenario SBMA: HIGH_BID_OFFER 92.8, NO_SELL 79.8, CLOSE_HIGH 87.8, VOLUME unavailable => finalScore 87.1
+  const indicators = [valid('HIGH_BID_OFFER', 92.8), valid('NO_SELL', 79.8), valid('CLOSE_HIGH', 87.8), unavailable('VOLUME')];
+
+  const rSbma = scoreStrategy(momDef, indicators, { changePct: -14.58 });
+  assert.strictEqual(rSbma.rawStatus, S.STRONG, 'skor mentah tetap 87.1 (STRONG)');
+  assert.strictEqual(rSbma.status, S.REJECT, 'status akhir HARUS REJECT karena return -14.58%');
+  assert.strictEqual(rSbma.priceRejected, true);
+  assert.strictEqual(rSbma.priceChangePct, -14.58);
+  assert(rSbma.adaptedScore <= 40, 'adaptedScore harus dipangkas ke <= 40');
+  assert(rSbma.reason.includes('Kontradiksi Momentum: Return harga negatif (-14.58%)'), 'alasan harus mencantumkan kontradiksi');
+
+  // Penurunan minor (-1.0%) pada momentum-candidate: dibatasi ke WATCH (bukan STRONG/QUALIFIED)
+  const rMinor = scoreStrategy(momDef, indicators, { changePct: -1.0 });
+  assert.strictEqual(rMinor.status, S.WATCH, 'penurunan minor dibatasi ke WATCH');
+  assert.strictEqual(rMinor.priceCapped, true);
+  assert(rMinor.adaptedScore <= 65);
+
+  // Kenaikan positif (+2.5%): tetap STRONG tanpa intervensi harga
+  const rPos = scoreStrategy(momDef, indicators, { changePct: 2.5 });
+  assert.strictEqual(rPos.status, S.STRONG, 'return positif tetap STRONG');
+  assert.strictEqual(rPos.priceRejected, false);
+  assert.strictEqual(rPos.priceCapped, false);
+
+  // Strategi lain (swing-flow) pada loss besar (-5.0%): REJECT
+  const swingDef = { id: 'swing-flow', weights: { A: 0.5, B: 0.5 }, mandatoryConditions: [], scoreBands: { strong: 80, qualified: 70, watch: 55 } };
+  const rSwingLoss = scoreStrategy(swingDef, [valid('A', 90), valid('B', 90)], { changePct: -5.0 });
+  assert.strictEqual(rSwingLoss.status, S.REJECT, 'loss >= 3% pada swing-flow harus REJECT');
+  assert.strictEqual(rSwingLoss.priceRejected, true);
+});
+
+await test('CLOSE_HIGH: candle merah (close < open) atau hari negatif (close < prev) digugurkan dan dipotong penalti', async () => {
+  const { computeCloseHigh } = await import('./lib/engine/indicators/closeHigh.js');
+
+  // Green candle, positive day -> lolos normal
+  const rNormal = computeCloseHigh({ ohlc: { open: 100, high: 110, low: 90, close: 108, prev: 99 } }, 0.80);
+  assert.strictEqual(rNormal.passed, true);
+  assert.strictEqual(rNormal.score, 90);
+  assert.strictEqual(rNormal.reason, null);
+
+  // Red candle (close 102 < open 105), meskipun closePosition = (102-90)/(105-90) = 12/15 = 0.80 -> digugurkan
+  const rRed = computeCloseHigh({ ohlc: { open: 105, high: 105, low: 90, close: 102, prev: 99 } }, 0.80);
+  assert.strictEqual(rRed.passed, false, 'red candle tidak boleh lolos CLOSE_HIGH');
+  assert(rRed.score < 80, 'skor harus dipotong penalti');
+  assert(rRed.reason.includes('BEARISH_CONTRADICTION'));
+
+  // Negative day (close 168 < prev 197), closePosition = (168-160)/(170-160) = 0.80 -> digugurkan
+  const rDown = computeCloseHigh({ ohlc: { open: 165, high: 170, low: 160, close: 168, prev: 197 } }, 0.80);
+  assert.strictEqual(rDown.passed, false, 'hari negatif tidak boleh lolos CLOSE_HIGH');
+  assert(rDown.score < 80);
+  assert(rDown.reason.includes('close < prev'));
+});
+
 global.fetch = originalFetch;
 if (originalKey === undefined) delete process.env.INVEZGO_API_KEY; else process.env.INVEZGO_API_KEY = originalKey;
 

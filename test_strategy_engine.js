@@ -343,6 +343,32 @@ await (async () => {
       }
     });
 
+    await asyncTest('INTEGRATION: momentum-candidate rejects ticker experiencing negative return / loss besar (e.g. SBMA -14.58%)', async () => {
+      const savedFetch = global.fetch;
+      global.fetch = async (url) => {
+        const u = String(url);
+        if (u.includes('/analysis/order-book/')) {
+          // Fake bid thick at bottom, thin offer: 4000 vs 1000 => normally gives high score
+          return { ok: true, status: 200, json: async () => ({ code: 'SBMA', bid: [{ bid1price: 168, bid1lot: 4000, bid1freq: 10 }], offer: [{ offer1price: 169, offer1lot: 1000, offer1freq: 5 }] }) };
+        }
+        if (u.includes('/analysis/intraday-data/')) {
+          // Down -14.72%: prev = 197, close = 168
+          return { ok: true, status: 200, json: async () => ({ code: 'SBMA', open: 170, high: 170, low: 160, close: 168, avg: 165, volume: 5_000_000, freq: 2000, value: 5_000_000_000, prev: 197 }) };
+        }
+        return savedFetch(url);
+      };
+      try {
+        const result = await runStrategyForTicker('SBMA', 'momentum-candidate', { date: '2026-09-24', regulatoryEligible: true });
+        assert.strictEqual(result.status, 'REJECT', 'SBMA down negative return must be REJECT on momentum-candidate');
+        assert.strictEqual(result.priceRejected, true);
+        assert.strictEqual(result.priceChangePct, -14.72);
+        assert(result.reason.includes('Kontradiksi Momentum: Return harga negatif'));
+        assert(result.explanations.some(e => e.includes('REJECT') && e.includes('Kontradiksi Momentum')));
+      } finally {
+        global.fetch = savedFetch;
+      }
+    });
+
     await asyncTest('INTEGRATION: a ticker excluded by the Regulatory Health Gate is never scanned (DATA_INSUFFICIENT with no indicators computed)', async () => {
       const result = await runStrategyForTicker('FLAGGEDTEST', 'swing-flow', { regulatoryEligible: false });
       assert.strictEqual(result.status, 'DATA_INSUFFICIENT');
