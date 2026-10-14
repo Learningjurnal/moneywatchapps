@@ -104,6 +104,9 @@ function perfRenderEquity(period){
 
   // Tabel riwayat — reverse kronologis, membedakan P&L investasi riil vs mutasi kas (Setor/Tarik)
   var rdns = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) ? rdnMutations : [];
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var todayGainObj = (typeof calcPortfolioDayGain === 'function') ? calcPortfolioDayGain() : null;
+
   var rows = filtered.slice().reverse().map(function(h){
     var i = full.indexOf(h);
     var prevEq = i>0 ? full[i-1].equity : h.equity;
@@ -120,10 +123,23 @@ function perfRenderEquity(period){
     var netCashFlow = daySetor - dayTarik;
     var pureTradingPnl = rawDiff - netCashFlow;
 
+    var isToday = (h.date === todayStr);
+    var displayPnl = rawDiff;
+    var dayPct = null;
+
+    if (isToday && todayGainObj && typeof todayGainObj.dayGain === 'number' && todayGainObj.dayGain !== 0) {
+      // Sinkronkan baris hari ini dengan pergerakan pasar hari ini (Day Gain riil)
+      displayPnl = todayGainObj.dayGain;
+      dayPct = todayGainObj.dayPct;
+    }
+
     return {
       date: h.date,
       equity: h.equity,
       rawDiff: rawDiff,
+      displayPnl: displayPnl,
+      dayPct: dayPct,
+      isToday: isToday,
       pureTradingPnl: pureTradingPnl,
       daySetor: daySetor,
       dayTarik: dayTarik
@@ -139,10 +155,26 @@ function perfRenderEquity(period){
       cfBadge += '<div style="font-size:9px;color:var(--amber);margin-top:2px">Tarik: -Rp '+fmtK(r.dayTarik)+'</div>';
     }
 
-    return '<tr><td class="mono" style="font-size:11px">'+r.date+'</td>'
+    var isUp = (r.displayPnl >= 0);
+    var sign = isUp ? '+' : '';
+    var pnlHtml = '';
+
+    if (r.isToday && r.dayPct !== null) {
+      pnlHtml = sign + 'Rp ' + fmt(Math.abs(r.displayPnl)) + ' <span style="font-size:9.5px;opacity:0.85">(' + (r.dayPct >= 0 ? '+' : '') + r.dayPct.toFixed(2) + '%)</span>';
+    } else if (Math.abs(r.displayPnl) >= 1e6) {
+      pnlHtml = sign + 'Rp ' + fmtK(r.displayPnl);
+    } else {
+      pnlHtml = sign + 'Rp ' + fmt(r.displayPnl);
+    }
+
+    var tip = (r.isToday && r.dayPct !== null)
+      ? 'P&L Saham Hari Ini: ' + sign + 'Rp ' + fmt(Math.abs(r.displayPnl)) + ' (' + (r.dayPct >= 0 ? '+' : '') + r.dayPct.toFixed(2) + '%) | Ekuitas: Rp ' + fmt(Math.round(r.equity))
+      : 'P&L Harian: ' + sign + 'Rp ' + fmt(Math.round(r.displayPnl)) + ' | Ekuitas: Rp ' + fmt(Math.round(r.equity));
+
+    return '<tr><td class="mono" style="font-size:11px">'+r.date+(r.isToday ? ' <span style="font-size:9px;color:var(--accent);font-weight:700">LIVE</span>' : '')+'</td>'
       +'<td class="mono" style="font-size:11px">Rp '+fmtK(r.equity)+'</td>'
-      +'<td class="mono '+(r.rawDiff>=0?'up':'dn')+'" style="font-size:11px">'
-      + (r.rawDiff>=0?'+':'')+'Rp '+fmtK(r.rawDiff)
+      +'<td class="mono '+(isUp?'up':'dn')+'" style="font-size:11px" title="'+tip+'">'
+      + pnlHtml
       + cfBadge
       +'</td></tr>';
   }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Tidak ada data di periode ini</td></tr>';

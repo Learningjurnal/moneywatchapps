@@ -314,6 +314,46 @@ function computeCurrentAUM(){
   return Math.round((sahamMV||0)+(crMV||0)+(etfMV||0)+(rdMV||0)+(rdn||0));
 }
 
+// ── Performa Saham / Portofolio Hari Ini (1D Market Gain) — Single Canonical Source ──
+function calcPortfolioDayGain(){
+  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (typeof portfolio !== 'undefined' ? portfolio : []);
+  var sahamDayGain = 0;
+  var sahamPrevMv = 0;
+  var sahamMv = 0;
+  porto.forEach(function(p){
+    var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
+    var shares = p.shares || (p.lot ? p.lot * 100 : 0);
+    var mv = cur * shares;
+    sahamMv += mv;
+
+    var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
+    var chgPct = 0;
+    if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker])) {
+      chgPct = Number(changes[p.ticker]);
+    } else if (typeof getGlobalMarketChange === 'function') {
+      chgPct = getGlobalMarketChange(p.ticker);
+    }
+
+    if (prev > 0) {
+      sahamDayGain += (cur - prev) * shares;
+      sahamPrevMv += prev * shares;
+    } else if (chgPct !== 0) {
+      var prevVal = mv / (1 + (chgPct / 100));
+      sahamDayGain += (mv - prevVal);
+      sahamPrevMv += prevVal;
+    } else {
+      sahamPrevMv += mv;
+    }
+  });
+  var sahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+  return {
+    dayGain: Math.round(sahamDayGain),
+    dayPct: sahamDayPct,
+    prevMv: sahamPrevMv,
+    sahamMv: sahamMv
+  };
+}
+
 function isPortfolioDataReady(){
   // Cek apakah data transaksi & RDN sudah diinisialisasi
   var hasTx = (typeof transactions !== 'undefined' && Array.isArray(transactions));

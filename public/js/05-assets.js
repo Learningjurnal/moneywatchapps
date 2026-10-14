@@ -2446,6 +2446,7 @@ function renderPortfolioHub(){
   var totCash = (typeof calcRdnBalance === 'function' ? (calcRdnBalance('saham') + calcRdnBalance('crypto') + calcRdnBalance('reksadana')) : 0);
   var nonSahamCount = cryptoPorto.length + etfPorto.length + rdPorto.length;
   var totPositions = porto.length + nonSahamCount;
+  var totAum = totVal + totCash;
 
   if(el('hub-tot-val')) el('hub-tot-val').textContent = 'Rp ' + fmt(Math.round(totVal));
   if(el('hub-tot-cost')) el('hub-tot-cost').textContent = 'Rp ' + fmt(Math.round(totCost));
@@ -2471,35 +2472,44 @@ function renderPortfolioHub(){
     }
   }
 
+  if(el('hub-tot-aum-note')) {
+    el('hub-tot-aum-note').textContent = 'Total Ekuitas (+Kas): Rp ' + fmtK(totAum);
+    el('hub-tot-aum-note').title = 'Total Ekuitas Keseluruhan = Nilai Investasi (Rp ' + fmt(Math.round(totVal)) + ') + Kas RDN (Rp ' + fmt(Math.round(totCash)) + ') = Rp ' + fmt(Math.round(totAum));
+  }
+
   // Performa Saham Hari Ini (1D Day Gain) & Akumulasi Return
-  var sahamDayGain = 0;
-  var sahamPrevMv = 0;
-  porto.forEach(function(p){
-    var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
-    var shares = p.shares || (p.lot ? p.lot * 100 : 0);
-    var mv = cur * shares;
+  var dayGainData = (typeof calcPortfolioDayGain === 'function') ? calcPortfolioDayGain() : null;
+  var sahamDayGain = dayGainData ? dayGainData.dayGain : 0;
+  var sahamDayPct = dayGainData ? dayGainData.dayPct : 0;
 
-    var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
-    var chgPct = 0;
-    if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker])) {
-      chgPct = Number(changes[p.ticker]);
-    } else if (typeof getGlobalMarketChange === 'function') {
-      chgPct = getGlobalMarketChange(p.ticker);
-    }
+  if (!dayGainData) {
+    var sahamPrevMv = 0;
+    porto.forEach(function(p){
+      var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
+      var shares = p.shares || (p.lot ? p.lot * 100 : 0);
+      var mv = cur * shares;
 
-    if (prev > 0) {
-      sahamDayGain += (cur - prev) * shares;
-      sahamPrevMv += prev * shares;
-    } else if (chgPct !== 0) {
-      var prevVal = mv / (1 + (chgPct / 100));
-      sahamDayGain += (mv - prevVal);
-      sahamPrevMv += prevVal;
-    } else {
-      sahamPrevMv += mv;
-    }
-  });
+      var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
+      var chgPct = 0;
+      if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker])) {
+        chgPct = Number(changes[p.ticker]);
+      } else if (typeof getGlobalMarketChange === 'function') {
+        chgPct = getGlobalMarketChange(p.ticker);
+      }
 
-  var sahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+      if (prev > 0) {
+        sahamDayGain += (cur - prev) * shares;
+        sahamPrevMv += prev * shares;
+      } else if (chgPct !== 0) {
+        var prevVal = mv / (1 + (chgPct / 100));
+        sahamDayGain += (mv - prevVal);
+        sahamPrevMv += prevVal;
+      } else {
+        sahamPrevMv += mv;
+      }
+    });
+    sahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+  }
 
   if(el('hub-saham-day-chg')) {
     if(porto.length === 0 || sahamDayGain === 0) {
