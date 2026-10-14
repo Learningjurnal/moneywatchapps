@@ -40,7 +40,6 @@ import {
   getUniverseAccumulationDistribution,
   getUniverseAccumulationDistributionRange,
   getTransactionFlowVisualizer,
-  getBeiTickSize,
   generateBrokerSummary,
   getBrokerSummaryByBroker,
   getStockBandarFlowPillar,
