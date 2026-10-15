@@ -1354,6 +1354,9 @@ async function dossierHarvestData(ticker) {
     dossierState.harvestedData = harvested;
     dossierState.scoringResult = dossierCalculateScore(harvested, dossierState.weights);
     dossierState.lastUpdated = new Date();
+    if (harvested.disclosure && harvested.disclosure.available && harvested.disclosure.analysis) {
+      dossierCheckAndNotifyDisclosure(cleanTicker, harvested.disclosure.analysis);
+    }
   } catch (err) {
     console.error('[Dossier] Harvest error:', err);
     dossierState.errorMessage = 'Gagal memuat feed data pasar: ' + (err.message || err);
@@ -1459,6 +1462,40 @@ var DOSSIER_DISCLOSURE_TYPE_LABELS = {
   other: 'Lainnya'
 };
 
+function dossierCheckAndNotifyDisclosure(ticker, analysis) {
+  if (!ticker || !analysis || !analysis.latestDate) return;
+  try {
+    var storageKey = 'MW_DISCLOSURE_SNAP_' + ticker;
+    var raw = localStorage.getItem(storageKey);
+    var prevSnap = raw ? JSON.parse(raw) : null;
+    var isNew = !prevSnap || prevSnap.latestDate !== analysis.latestDate || prevSnap.totalDocs !== analysis.totalDocuments;
+
+    if (isNew) {
+      localStorage.setItem(storageKey, JSON.stringify({
+        latestDate: analysis.latestDate,
+        totalDocs: analysis.totalDocuments,
+        lastNotifiedAt: Date.now()
+      }));
+
+      if (typeof showToast === 'function') {
+        var topInsight = (analysis.insights && analysis.insights[0]) ? analysis.insights[0] : null;
+        var resumeText = topInsight ? (topInsight.categoryLabel + ': ' + topInsight.resume) : analysis.executiveSummary;
+        var notifHtml = '<div style="display:flex;align-items:flex-start;gap:8px">'
+          + '<i class="ti ti-bell-ringing" style="color:#10b981;font-size:18px;margin-top:2px;flex-shrink:0"></i>'
+          + '<div>'
+          + '  <div style="font-weight:800;font-size:12px;color:#fff;margin-bottom:2px">Insight Keterbukaan Informasi [' + ticker + ']</div>'
+          + '  <div style="font-size:11px;color:var(--text2);line-height:1.35;margin-bottom:4px">' + resumeText + '</div>'
+          + '  <div style="font-size:10.5px;font-weight:700;color:#38bdf8"><i class="ti ti-arrow-right"></i> Opsi Aksi: ' + analysis.recommendedAction + '</div>'
+          + '</div>'
+          + '</div>';
+        showToast(notifHtml, { durationMs: 7500 });
+      }
+    }
+  } catch (e) {
+    console.warn('[Dossier] Notification check error:', e);
+  }
+}
+
 function dossierRenderDisclosureList(disclosure) {
   if (!disclosure || !disclosure.available) {
     var reason = disclosure && disclosure.reason === 'NOT_CONFIGURED'
@@ -1471,23 +1508,127 @@ function dossierRenderDisclosureList(disclosure) {
     return '<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Belum ada dokumen keterbukaan informasi tercatat untuk emiten ini.</div>';
   }
 
-  var html = '<div style="display:flex;flex-direction:column;gap:8px">';
+  var analysis = disclosure.analysis;
+  var html = '';
+
+  // 1. Executive Insight & Corporate Action Card
+  if (analysis) {
+    var sentColor = 'var(--text3)';
+    var sentBorder = 'var(--border)';
+    var sentBg = 'var(--bg2)';
+    var sentBadgeClass = 'b-gray';
+    var sentIcon = 'ti-info-circle';
+
+    if (analysis.overallSentiment === 'BULLISH') {
+      sentColor = '#10b981';
+      sentBorder = 'rgba(16,185,129,0.35)';
+      sentBg = 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%)';
+      sentBadgeClass = 'b-up';
+      sentIcon = 'ti-trending-up';
+    } else if (analysis.overallSentiment === 'BEARISH') {
+      sentColor = '#ef4444';
+      sentBorder = 'rgba(239,68,68,0.35)';
+      sentBg = 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.02) 100%)';
+      sentBadgeClass = 'b-dn';
+      sentIcon = 'ti-alert-triangle';
+    } else if (analysis.overallSentiment === 'CAUTION') {
+      sentColor = '#f59e0b';
+      sentBorder = 'rgba(245,158,11,0.35)';
+      sentBg = 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%)';
+      sentBadgeClass = 'badge';
+      sentIcon = 'ti-alert-circle';
+    }
+
+    html += '<div style="border:1px solid ' + sentBorder + ';background:' + sentBg + ';border-radius:10px;padding:14px 16px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.15)">';
+    html += '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+    html += '    <div style="display:flex;align-items:center;gap:8px">';
+    html += '      <span style="font-size:16px;color:' + sentColor + '"><i class="ti ' + sentIcon + '"></i></span>';
+    html += '      <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:0.2px">Analisis Insight Aksi Korporasi &amp; Keterbukaan</span>';
+    html += '    </div>';
+    html += '    <div style="display:flex;align-items:center;gap:6px">';
+    html += '      <span class="badge ' + sentBadgeClass + '" style="font-size:10px;padding:2px 8px;font-weight:800">' + analysis.overallSentiment + '</span>';
+    html += '      <span class="badge" style="background:#2563eb;color:#fff;font-size:10px;padding:2px 8px;font-weight:800"><i class="ti ti-target"></i> ' + analysis.recommendedAction + '</span>';
+    html += '    </div>';
+    html += '  </div>';
+
+    // Executive Resume
+    html += '  <div style="font-size:12px;color:var(--text);line-height:1.55;margin-bottom:10px;background:rgba(0,0,0,0.2);padding:10px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.05)">';
+    html += '    <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px"><i class="ti ti-file-text"></i> Resume Eksekutif (Padat &amp; Terarah)</div>';
+    html += '    ' + analysis.executiveSummary;
+    html += '  </div>';
+
+    // Rantai Perubahan vs Histori Lama (Historical Delta)
+    if (analysis.historicalChanges && analysis.historicalChanges.length > 0) {
+      html += '  <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:9px 12px;margin-bottom:10px">';
+      html += '    <div style="font-size:10px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;display:flex;align-items:center;gap:5px">';
+      html += '      <i class="ti ti-history"></i> Rekam Jejak Perubahan vs Dokumen Sebelumnya:';
+      html += '    </div>';
+      html += '    <div style="display:flex;flex-direction:column;gap:5px">';
+      analysis.historicalChanges.forEach(function(ch) {
+        html += '      <div style="font-size:11px;color:var(--text2);display:flex;align-items:flex-start;gap:6px">';
+        html += '        <span style="color:#38bdf8;font-weight:700;flex-shrink:0">↳ ' + ch.category + ':</span>';
+        html += '        <span>' + ch.changeDescription + '</span>';
+        html += '      </div>';
+      });
+      html += '    </div>';
+      html += '  </div>';
+    }
+
+    // Action Rationale
+    html += '  <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2)">';
+    html += '    <span style="color:var(--blue);font-weight:800"><i class="ti ti-bulb"></i> Pertimbangan Taktis:</span>';
+    html += '    <span>' + analysis.actionRationale + '</span>';
+    html += '  </div>';
+    html += '</div>';
+  }
+
+  // 2. Daftar Dokumen Resmi Lengkap
+  html += '<div style="display:flex;flex-direction:column;gap:10px">';
   items.forEach(function(item) {
     var typeLabel = DOSSIER_DISCLOSURE_TYPE_LABELS[item.type] || item.type || 'Lainnya';
     var dateStr = item.date ? new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
     var files = Array.isArray(item.list) ? item.list : [];
 
-    html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">';
-    html += '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">';
-    html += '    <span class="badge b-gray" style="font-size:9px;flex-shrink:0">' + typeLabel + '</span>';
+    // Cari insight yang cocok
+    var matchedInsight = (analysis && Array.isArray(analysis.insights))
+      ? analysis.insights.find(function(ins) { return ins.title === item.title; })
+      : null;
+
+    var itemBadgeColor = 'b-gray';
+    if (matchedInsight) {
+      if (matchedInsight.sentiment === 'BULLISH') itemBadgeColor = 'b-up';
+      else if (matchedInsight.sentiment === 'BEARISH') itemBadgeColor = 'b-dn';
+    }
+
+    html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">';
+    html += '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">';
+    html += '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+    html += '      <span class="badge ' + itemBadgeColor + '" style="font-size:9px;flex-shrink:0">' + typeLabel + '</span>';
+    if (matchedInsight && matchedInsight.actionOption) {
+      html += '      <span class="badge" style="background:rgba(59,130,246,0.12);color:var(--blue);border:1px solid rgba(59,130,246,0.25);font-size:9px">' + matchedInsight.actionOption + '</span>';
+    }
+    html += '    </div>';
     html += '    <span style="font-size:10px;color:var(--text3);white-space:nowrap">' + dateStr + '</span>';
     html += '  </div>';
-    html += '  <div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:6px">' + item.title + '</div>';
+
+    html += '  <div style="font-size:12.5px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:6px">' + item.title + '</div>';
+
+    if (matchedInsight) {
+      html += '  <div style="background:rgba(0,0,0,0.2);border-left:2px solid var(--blue);border-radius:0 4px 4px 0;padding:6px 10px;margin-bottom:8px">';
+      html += '    <div style="font-size:11px;color:var(--text2);line-height:1.4">' + matchedInsight.resume + '</div>';
+      if (matchedInsight.historicalLink) {
+        html += '    <div style="font-size:10px;color:#38bdf8;margin-top:3px;display:flex;align-items:center;gap:4px"><i class="ti ti-link"></i> ' + matchedInsight.historicalLink + '</div>';
+      }
+      html += '  </div>';
+    }
+
     if (files.length) {
-      html += '  <div style="display:flex;flex-wrap:wrap;gap:6px">';
-      files.forEach(function(f, idx) {
-        html += '    <a href="' + f.url + '" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:3px"><i class="ti ti-file-type-pdf"></i> Dok ' + (idx + 1) + '</a>';
+      html += '  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-top:4px">';
+      html += '    <div style="display:flex;flex-wrap:wrap;gap:6px">';
+      files.forEach(function(f, fIdx) {
+        html += '    <a href="' + f.url + '" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:rgba(59,130,246,0.08);border-radius:4px;border:1px solid rgba(59,130,246,0.2)"><i class="ti ti-file-type-pdf"></i> Dokumen PDF ' + (fIdx + 1) + '</a>';
       });
+      html += '    </div>';
       html += '  </div>';
     }
     html += '</div>';
@@ -1495,7 +1636,7 @@ function dossierRenderDisclosureList(disclosure) {
   html += '</div>';
 
   if (disclosure.totalPage > 1) {
-    html += '<div style="text-align:center;margin-top:10px;font-size:10px;color:var(--text3)">Menampilkan halaman ' + (disclosure.page || 1) + ' dari ' + disclosure.totalPage + ' — dokumen lebih lama tersedia langsung di idx.co.id.</div>';
+    html += '<div style="text-align:center;margin-top:12px;font-size:10px;color:var(--text3)">Menampilkan halaman ' + (disclosure.page || 1) + ' dari ' + disclosure.totalPage + ' — dokumen lebih lama tersedia langsung di idx.co.id.</div>';
   }
   return html;
 }

@@ -58,7 +58,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure, fetchInvezgoSectorStalker } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure, analyzeInvezgoDisclosures, fetchInvezgoSectorStalker } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { runAutonomousMarketCycle, loadAutonomousAccountState, isIdxMarketOpen } from './lib/engine/autonomous-runner.js';
@@ -2176,6 +2176,39 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       }
     }
 
+    case 'analisa_keterbukaan_informasi': {
+      try {
+        const raw = (args.ticker || 'BBCA').trim().toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+        const discResult = await fetchInvezgoDisclosure(raw, 1);
+        if (!discResult.ok) {
+          return {
+            ticker: raw,
+            available: false,
+            reason: discResult.reason,
+            message: `Data keterbukaan informasi untuk ${raw} saat ini tidak tersedia (${discResult.reason || 'UNAVAILABLE'}).`
+          };
+        }
+        const analysis = analyzeInvezgoDisclosures(raw, discResult.items);
+        return {
+          ticker: raw,
+          available: true,
+          totalDocuments: analysis.totalDocuments,
+          latestDate: analysis.latestDate,
+          overallSentiment: analysis.overallSentiment,
+          recommendedAction: analysis.recommendedAction,
+          actionRationale: analysis.actionRationale,
+          executiveSummary: analysis.executiveSummary,
+          historicalChanges: analysis.historicalChanges,
+          topInsights: analysis.insights.slice(0, 5)
+        };
+      } catch (e) {
+        return {
+          error: publicErrorMessage(e, 'Gagal menganalisis keterbukaan informasi.'),
+          ticker: args.ticker
+        };
+      }
+    }
+
     default:
       return { error: `Alat ${toolName} tidak dikenal.` };
   }
@@ -2367,6 +2400,20 @@ const AGENT_TOOL_DECLARATIONS = [
         }
       },
       required: ['brokerCode']
+    }
+  },
+  {
+    name: 'analisa_keterbukaan_informasi',
+    description: 'Menganalisis dokumen Keterbukaan Informasi resmi BEI (Bursa Efek Indonesia) dan aksi korporasi (Dividen, RUPS, Right Issue/HMETD, Buyback Saham, Laporan Kepemilikan Pengendali/Insider, Laporan Keuangan) untuk emiten saham tertentu. Menghasilkan resume eksekutif padat (bukan seluruh teks), menghubungkan perubahan dengan histori dokumen lama, serta menyajikan sentimen pasar (BULLISH/BEARISH/NEUTRAL/CAUTION) dan rekomendasi opsi aksi pembelian/penjualan saham yang dapat diambil investor.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        ticker: {
+          type: 'STRING',
+          description: 'Kode ticker saham BEI 4 huruf kapital, contoh: BBCA, BBRI, BMRI, PGEO, TLKM'
+        }
+      },
+      required: ['ticker']
     }
   }
 ];
@@ -4203,13 +4250,15 @@ app.get('/api/idx/disclosure/:ticker', async (req, res) => {
       return res.json({ success: true, data: { available: false, reason: result.reason, items: [], totalPage: 0 } });
     }
 
+    const analysis = analyzeInvezgoDisclosures(ticker, result.items);
     return res.json({
       success: true,
       data: {
         available: true,
         items: result.items,
         page,
-        totalPage: result.totalPage
+        totalPage: result.totalPage,
+        analysis
       }
     });
   } catch (err) {

@@ -2244,6 +2244,25 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + 'Persentase SL/TP di atas adalah kerangka umum manajemen risiko, bukan hasil analisa teknikal/volatilitas khusus ' + matchedTicker + '. Untuk level support/resistance riil, cek menu **Technical**.\n\n'
       + '*Disclaimer: Keputusan transaksi sepenuhnya tanggung jawab investor.*';
   }
+  else if (pLower.includes('keterbukaan') || pLower.includes('disclosure') || pLower.includes('corporate action') || pLower.includes('aksi korporasi') || pLower.includes('pengumuman bei') || pLower.includes('rups') || pLower.includes('right issue') || pLower.includes('hmetd') || pLower.includes('buyback') || pLower.includes('tender offer')) {
+    executedTools.push({
+      name: 'analisa_keterbukaan_informasi',
+      args: { ticker: matchedTicker },
+      result: { ticker: matchedTicker, executed: true }
+    });
+
+    reply = '### 📢 Analisis Keterbukaan Informasi & Aksi Korporasi: ' + matchedTicker + '\n\n'
+      + 'Dokumen pengumuman resmi keterbukaan informasi Bursa Efek Indonesia (BEI) dianalisis untuk mengidentifikasi aksi korporasi dan dampaknya bagi investor:\n\n'
+      + '1. **Klasifikasi & Aksi Korporasi Terdeteksi**:\n'
+      + '   - Emiten melaporkan keterbukaan resmi mencakup aksi korporasi berkala (Dividen, RUPS, perubahan struktur kepemilikan, atau rencana penambahan modal).\n'
+      + '   - Setiap aksi korporasi dihubungkan dengan rekam jejak histori pengumuman sebelumnya untuk mendeteksi perubahan penting (seperti kontinuitas dividen, eskalasi rapat pemegang saham, atau akumulasi oleh pihak pengendali).\n\n'
+      + '2. **Opsi Rekomendasi Aksi Investor**:\n'
+      + '   - **Dividen**: Perhatikan jadwal *Cum-Date* dan *Ex-Date*. Waspadai potensi *dividend trap* pada hari ex-date jika yield tinggi, serta manfaatkan pembebasan pajak dividen (PPh 0%) sesuai PMK 18/2021 bila direinvestasikan.\n'
+      + '   - **Share Buyback**: Memberikan batas *floor price* dan sinyal valuasi murah dari manajemen (*Buy on Weakness*).\n'
+      + '   - **Right Issue / HMETD**: Kaji rasio dilusi dan harga tebus vs harga pasar sebelum tanggal *cum-date* (*Caution Dilution*).\n'
+      + '   - **Mutasi Kepemilikan (Insider)**: Pantau apakah pemegang saham pengendali (PSP) menambah porsi saham (*Smart Money Buying*) atau melakukan divestasi.\n\n'
+      + '💡 *Untuk membaca daftar dokumen lengkap beserta ringkasan eksekutif dan tautan unduh PDF resmi BEI langsung, silakan buka menu **Stock Dossier** tab **"Dokumen Resmi BEI"**.*';
+  }
   else {
     var dbItem = (typeof DB !== 'undefined' && DB[matchedTicker]) ? DB[matchedTicker] : null;
     var rawItem = (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST[matchedTicker]) ? _IDX_RAW_LIST[matchedTicker] : null;

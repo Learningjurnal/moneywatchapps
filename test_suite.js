@@ -10768,6 +10768,71 @@ test('REGRESSION GUARD: Stock Dossier "Dokumen Resmi BEI" tab fetches real per-t
 });
 
 // ============================================================
+// FEATURE (2026-10-15, audit "tools analisa keterbukaan informasi & notifikasi insight baru"):
+// analyzeInvezgoDisclosures() in lib/invezgo-client.js provides structured
+// executive resume, sentiment, action options, and historical change tracking;
+// wired to AI tool `analisa_keterbukaan_informasi` in server.js and
+// Stock Dossier visual card + toast notification system.
+// ============================================================
+test('FEATURE: analyzeInvezgoDisclosures() provides executive resume, historical change tracking, sentiment, and actionable options', async () => {
+  const { analyzeInvezgoDisclosures } = await import('./lib/invezgo-client.js');
+  assert.strictEqual(typeof analyzeInvezgoDisclosures, 'function', 'analyzeInvezgoDisclosures must be exported from lib/invezgo-client.js');
+
+  // Test empty documents
+  const emptyRes = analyzeInvezgoDisclosures('BBCA', []);
+  assert.strictEqual(emptyRes.totalDocuments, 0);
+  assert.strictEqual(emptyRes.overallSentiment, 'NEUTRAL');
+  assert.strictEqual(emptyRes.recommendedAction, 'HOLD & MONITOR');
+
+  // Test corporate action documents with historical link
+  const sampleDocs = [
+    {
+      title: 'Pemberitahuan Jadwal Pembagian Dividen Tunai Interim Tahun Buku 2026',
+      type: 'dividen',
+      date: '2026-10-15T08:00:00Z',
+      list: [{ name: 'Doc1', url: 'https://idx.co.id/doc1.pdf' }]
+    },
+    {
+      title: 'Keterbukaan Informasi Rencana Pembelian Kembali Saham (Buyback)',
+      type: 'other',
+      date: '2026-09-20T08:00:00Z',
+      list: [{ name: 'Doc2', url: 'https://idx.co.id/doc2.pdf' }]
+    },
+    {
+      title: 'Pemberitahuan Pembagian Dividen Tunai Final Tahun Buku 2025',
+      type: 'dividen',
+      date: '2026-04-10T08:00:00Z',
+      list: [{ name: 'Doc3', url: 'https://idx.co.id/doc3.pdf' }]
+    }
+  ];
+
+  const analysis = analyzeInvezgoDisclosures('BBCA', sampleDocs);
+  assert.strictEqual(analysis.ticker, 'BBCA');
+  assert.strictEqual(analysis.totalDocuments, 3);
+  assert.strictEqual(analysis.overallSentiment, 'BULLISH');
+  assert.strictEqual(analysis.insights.length, 3);
+
+  // Checks executive resume is present and concise
+  assert(typeof analysis.executiveSummary === 'string' && analysis.executiveSummary.length > 20);
+
+  // Checks historical change tracking connects the two dividend filings
+  assert(analysis.historicalChanges.length >= 1, 'Must track historical changes across multiple dividend events');
+  assert(/dividen/i.test(analysis.historicalChanges[0].category));
+
+  // Server-side registration checks
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/name:\s*'analisa_keterbukaan_informasi'/.test(serverSrc), 'analisa_keterbukaan_informasi must be declared in AGENT_TOOL_DECLARATIONS');
+  assert(/case\s*'analisa_keterbukaan_informasi':/.test(serverSrc), 'analisa_keterbukaan_informasi must be handled in executeAgentTool');
+  assert(/analysis\b/.test(serverSrc), '/api/idx/disclosure/:ticker must attach analysis to response');
+
+  // Stock Dossier UI & Notification checks
+  const dossierSrc = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(/function dossierCheckAndNotifyDisclosure/.test(dossierSrc), 'dossierCheckAndNotifyDisclosure must exist in 46-stock-dossier.js');
+  assert(/MW_DISCLOSURE_SNAP_/.test(dossierSrc), 'Must persist disclosure snapshot to detect new updates');
+  assert(/Analisis Insight Aksi Korporasi/.test(dossierSrc), 'dossierRenderDisclosureList must render the Executive Insight & Corporate Action card');
+});
+
+// ============================================================
 // FEATURE (2026-10-02, audit "lanjut yang stalker/sector" — last of the 3
 // explored-but-unused whole-market endpoints): GET /analysis/stalker/
 // sector (fetchInvezgoSectorStalker(), lib/invezgo-client.js — schema
