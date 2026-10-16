@@ -79,6 +79,44 @@ async function seLoadLatest(strategyId) {
     seRenderStrategyEnginePage('us-strategy-subpage');
   }
 }
+window.seLoadLatest = seLoadLatest;
+
+function seCopyCronUrl(btn) {
+  var fullUrl = window.location.origin + '/api/cron/warm-strategy-engine';
+  var done = function () {
+    if (typeof showToast === 'function') {
+      showToast('✓ URL endpoint cron berhasil disalin!');
+    }
+    if (btn) {
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<i class="ti ti-check"></i> Tersalin';
+      btn.style.color = '#10b981';
+      setTimeout(function () {
+        btn.innerHTML = orig;
+        btn.style.color = '';
+      }, 2000);
+    }
+  };
+  if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(fullUrl).then(done).catch(function () {
+      if (typeof showToast === 'function') showToast(fullUrl);
+    });
+  } else if (typeof showToast === 'function') {
+    showToast(fullUrl);
+  }
+}
+window.seCopyCronUrl = seCopyCronUrl;
+
+function seQuickScanTicker(ticker) {
+  if (!ticker) return;
+  SE_STATE.tickersInput = ticker;
+  var input = document.getElementById('se-tickers-input');
+  if (input) input.value = ticker;
+  var formCard = document.getElementById('se-scan-form-card');
+  if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  seRunScan();
+}
+window.seQuickScanTicker = seQuickScanTicker;
 
 function seStatusBadgeClass(status) {
   if (status === 'STRONG') return 'b-up';
@@ -280,7 +318,7 @@ function seRenderStrategyEnginePage(containerId) {
 
   var strat = SE_STATE.strategies.find(function (s) { return s.id === SE_STATE.selectedStrategy; });
 
-  var html = '<div class="se-card">'
+  var html = '<div class="se-card" id="se-scan-form-card">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">'
     + '  <div class="se-header-title">'
     + '    <i class="ti ti-cpu" style="color:var(--accent-blue,#38bdf8);font-size:20px"></i>'
@@ -377,40 +415,124 @@ function seRenderStrategyEnginePage(containerId) {
 
   // "Hasil Cron Terakhir" — akumulasi sinyal STRONG/QUALIFIED hari ini
   // dari warmStrategyEngineRotating(), bukan hasil scan manual di atas.
-  html += '<div class="se-card">'
-    + '  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
-    + '    <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
-    + '      <i class="ti ti-bolt" style="color:var(--amber,#f59e0b)"></i> Hasil Cron Terakhir (Hari Ini)'
+  var latestData = SE_STATE.latest.data;
+  var hasSignals = Boolean(latestData && latestData.signals && latestData.signals.length > 0);
+  var signalsCount = hasSignals ? latestData.signals.length : 0;
+  var dateStr = latestData && latestData.date ? latestData.date : '';
+
+  html += '<div class="se-cron-card">'
+    + '  <div class="se-cron-header">'
+    + '    <div class="se-cron-header-left">'
+    + '      <div class="se-cron-icon-badge">'
+    + '        <i class="ti ti-clock-play"></i>'
+    + '      </div>'
+    + '      <div class="se-cron-title-wrap">'
+    + '        <div class="se-cron-title">'
+    + '          <span>Hasil Sinyal Cron Otomatis (Hari Ini)</span>'
+    + '        </div>'
+    + '        <div class="se-cron-subtitle">'
+    + '          Akumulasi sinyal pemindaian rotasi latar belakang berstatus <b>STRONG</b> atau <b>QUALIFIED</b> pada sesi bursa hari ini.'
+    + '        </div>'
+    + '      </div>'
     + '    </div>'
-    + (SE_STATE.latest.data ? ('<span class="badge b-accent" style="font-size:10px">Tanggal ' + SE_STATE.latest.data.date + '</span>') : '')
-    + '  </div>'
-    + '  <div style="font-size:11.5px;color:var(--text-mute);margin-bottom:12px">'
-    + '    Akumulasi sinyal berkala dari <code>warmStrategyEngineRotating()</code> yang berhasil lolos kriteria STRONG atau QUALIFIED hari ini.'
+    + '    <div class="se-cron-header-right">'
+    + (dateStr ? ('      <span class="se-meta-pill se-pill-date"><i class="ti ti-calendar"></i> Tanggal ' + dateStr + '</span>') : '')
+    + (hasSignals
+        ? ('      <span class="se-meta-pill se-pill-success"><span class="se-pulse-dot se-pulse-green"></span> ' + signalsCount + ' Sinyal Terdeteksi</span>')
+        : ('      <span class="se-meta-pill se-pill-standby"><span class="se-pulse-dot se-pulse-amber"></span> Standby / Menunggu Cron</span>'))
+    + '      <button class="se-btn-refresh" onclick="seLoadLatest(SE_STATE.selectedStrategy)" title="Muat ulang hasil cron">'
+    + '        <i class="ti ti-refresh' + (SE_STATE.latest.loading ? ' ti-spin' : '') + '"></i> Segarkan'
+    + '      </button>'
+    + '    </div>'
     + '  </div>';
 
   if (SE_STATE.latest.error) {
-    html += '<div style="font-size:11.5px;color:var(--down,#dc2626);padding:10px 14px;background:rgba(239,68,68,0.1);border-radius:8px">' + SE_STATE.latest.error + '</div>';
+    html += '<div class="se-empty-box" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06)">'
+      + '  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--down,#dc2626);font-size:12px">'
+      + '    <div style="display:flex;align-items:center;gap:8px">'
+      + '      <i class="ti ti-alert-circle" style="font-size:18px"></i>'
+      + '      <span>' + SE_STATE.latest.error + '</span>'
+      + '    </div>'
+      + '    <button class="se-btn-refresh" onclick="seLoadLatest(SE_STATE.selectedStrategy)">Coba Lagi</button>'
+      + '  </div>'
+      + '</div>';
   } else if (SE_STATE.latest.loading) {
-    html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;text-align:center"><i class="ti ti-loader ti-spin"></i> Memuat sinyal terbaru…</div>';
-  } else if (SE_STATE.latest.data && SE_STATE.latest.data.signals && SE_STATE.latest.data.signals.length > 0) {
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:10px">'
-      + SE_STATE.latest.data.signals.map(function (s) {
+    html += '<div class="se-empty-box" style="align-items:center;justify-content:center;padding:32px 20px;text-align:center">'
+      + '  <div class="se-empty-radar-wrap" style="margin-bottom:4px">'
+      + '    <i class="ti ti-loader ti-spin" style="font-size:24px"></i>'
+      + '  </div>'
+      + '  <div class="se-empty-title">Memeriksa Sinyal Cron Terbaru…</div>'
+      + '  <div class="se-empty-desc">Menghubungi cache sinyal rotasi untuk strategi ' + (strat ? strat.name : '') + '.</div>'
+      + '</div>';
+  } else if (hasSignals) {
+    html += '<div class="se-signal-grid">'
+      + latestData.signals.map(function (s) {
           var isStrong = s.status === 'STRONG';
-          var badgeStyle = isStrong
-            ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
-            : 'background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)';
-          return '<div style="background:var(--bg3,#0D1322);border:1px solid var(--border,#1E293B);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px">'
-            + '  <div style="display:flex;align-items:center;gap:8px">'
-            + '    <span class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + s.ticker + '</span>'
-            + '    <span class="badge" style="' + badgeStyle + ';font-size:10px;font-weight:700">' + s.status + '</span>'
+          var badgeCls = isStrong ? 'strong' : 'qualified';
+          var iconName = isStrong ? 'ti ti-bolt' : 'ti ti-check';
+          var scoreNum = s.score != null ? Math.round(s.score) : null;
+          var scorePct = scoreNum != null ? Math.min(Math.max(scoreNum, 0), 100) : 0;
+          return '<div class="se-signal-item" onclick="seQuickScanTicker(\'' + s.ticker + '\')" title="Klik untuk pindai rincian ' + s.ticker + '">'
+            + '  <div class="se-signal-top">'
+            + '    <div class="se-signal-ticker-wrap">'
+            + '      <span class="se-signal-ticker">' + s.ticker + '</span>'
+            + '      <span class="badge" style="font-size:9.5px;padding:1px 5px;background:var(--bg4,#1e293b);color:var(--text3,#8f9aa6)">IDX</span>'
+            + '    </div>'
+            + '    <span class="se-signal-badge ' + badgeCls + '"><i class="' + iconName + '"></i> ' + s.status + '</span>'
             + '  </div>'
-            + '  <div class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + (s.score != null ? s.score : '-') + '</div>'
+            + '  <div style="background:var(--bg,#030712);border-radius:4px;height:5px;width:100%;overflow:hidden">'
+            + '    <div style="height:100%;width:' + scorePct + '%;background:' + (isStrong ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#0284c7,#38bdf8)') + ';border-radius:4px"></div>'
+            + '  </div>'
+            + '  <div class="se-signal-bottom">'
+            + '    <div>'
+            + '      <span class="se-signal-score-label">Skor Konfluensi: </span>'
+            + '      <span class="se-signal-score-val">' + (scoreNum != null ? scoreNum : '-') + '</span>'
+            + '    </div>'
+            + '    <span class="se-signal-action-btn"><i class="ti ti-search"></i> Analisis</span>'
+            + '  </div>'
             + '</div>';
         }).join('')
       + '</div>';
   } else {
-    html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;background:var(--bg3,#0D1322);border:1px solid var(--border,#1E293B);border-radius:8px;line-height:1.6">'
-      + 'Belum ada sinyal terkumpul hari ini. Cron <code>GET /api/cron/warm-strategy-engine</code> belum otomatis jalan lewat Vercel native cron (2 slot Hobby sudah dipakai 2 cron lain) — perlu penjadwal eksternal (cron-job.org, GitHub Actions, dll) yang memanggil URL itu dengan header Authorization Bearer CRON_SECRET, atau jalankan manual dulu untuk tes.'
+    // Elegant Empty State with Structured Cron Dispatcher Info
+    html += '<div class="se-empty-box">'
+      + '  <div class="se-empty-banner">'
+      + '    <div class="se-empty-radar-wrap">'
+      + '      <i class="ti ti-radar"></i>'
+      + '    </div>'
+      + '    <div style="flex:1">'
+      + '      <h4 class="se-empty-title">Belum Ada Sinyal Terkumpul Hari Ini</h4>'
+      + '      <p class="se-empty-desc">'
+      + '        Scanner latar belakang rotasi belum menemukan emiten yang menembus kriteria <b>STRONG</b> atau <b>QUALIFIED</b> untuk strategi ini pada sesi hari ini.'
+      + '      </p>'
+      + '    </div>'
+      + '  </div>'
+      + '  <div class="se-dispatcher-info">'
+      + '    <div class="se-dispatcher-header">'
+      + '      <span class="se-dispatcher-label"><i class="ti ti-server-cog"></i> Konfigurasi Penjadwalan Eksternal (Cron Dispatcher)</span>'
+      + '      <span class="se-dispatcher-pill"><i class="ti ti-info-circle"></i> Vercel Hobby: 2 Slot Cron Native Terpakai</span>'
+      + '    </div>'
+      + '    <div style="font-size:11.5px;color:var(--text3,#8f9aa6);line-height:1.5">'
+      + '      Agar sinyal berputar otomatis sepanjang jam bursa, jalankan trigger berkala melalui penjadwal eksternal (misal: <b>cron-job.org</b>, <b>GitHub Actions</b>, atau <b>EasyCron</b>).'
+      + '    </div>'
+      + '    <div class="se-dispatcher-grid">'
+      + '      <div class="se-dispatcher-row">'
+      + '        <div style="display:flex;align-items:center;gap:6px;min-width:0">'
+      + '          <span class="badge b-blue" style="font-size:9.5px;padding:2px 5px">GET</span>'
+      + '          <span class="se-code-val" title="/api/cron/warm-strategy-engine">/api/cron/warm-strategy-engine</span>'
+      + '        </div>'
+      + '        <button class="se-btn-copy" onclick="seCopyCronUrl(this)" title="Salin endpoint URL lengkap">'
+      + '          <i class="ti ti-copy"></i> Salin URL'
+      + '        </button>'
+      + '      </div>'
+      + '      <div class="se-dispatcher-row">'
+      + '        <div style="display:flex;align-items:center;gap:6px;min-width:0">'
+      + '          <span class="badge b-amb" style="font-size:9.5px;padding:2px 5px">AUTH</span>'
+      + '          <span class="se-code-val">Authorization: Bearer CRON_SECRET</span>'
+      + '        </div>'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
       + '</div>';
   }
   html += '</div>';
