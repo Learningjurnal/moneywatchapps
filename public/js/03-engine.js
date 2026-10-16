@@ -10,6 +10,9 @@
 // there's one consistent toast style app-wide, not two competing ones.
 function showToast(message, opts) {
   opts = opts || {};
+  if (typeof opts === 'string') {
+    opts = { color: opts };
+  }
   var toastContainer = document.getElementById('mw-toast-container');
   if (!toastContainer) {
     toastContainer = document.createElement('div');
@@ -18,12 +21,30 @@ function showToast(message, opts) {
     document.body.appendChild(toastContainer);
   }
 
+  var borderColor = opts.color || opts.borderColor;
+  if (!borderColor) {
+    if (opts.type === 'error') borderColor = 'rgba(239,68,68,0.5)';
+    else if (opts.type === 'success') borderColor = 'rgba(16,185,129,0.5)';
+    else if (opts.type === 'warn' || opts.type === 'warning') borderColor = 'rgba(245,158,11,0.5)';
+    else borderColor = 'rgba(255,255,255,0.12)';
+  }
+
+  var isHtml = Boolean(
+    opts.isHtml ||
+    opts.html ||
+    (opts.isHtml !== false && typeof message === 'string' && /^\s*<[a-z][\s\S]*>/i.test(message))
+  );
+
+  var bodyContent = isHtml
+    ? String(message == null ? '' : message)
+    : (typeof escHtml === 'function' ? escHtml(message) : String(message == null ? '' : message));
+
   var toast = document.createElement('div');
-  toast.style.cssText = 'background:#101726;border:1px solid rgba(255,255,255,0.12);box-shadow:0 15px 35px rgba(0,0,0,0.6);border-radius:10px;padding:12px 14px;pointer-events:auto;animation:toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);transition:all 0.2s ease;';
+  toast.style.cssText = 'background:#101726;border:1px solid ' + borderColor + ';box-shadow:0 15px 35px rgba(0,0,0,0.6);border-radius:10px;padding:12px 14px;pointer-events:auto;animation:toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);transition:all 0.2s ease;';
   toast.innerHTML = ''
-    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
-    + '  <div style="font-size:12.5px;color:#fff;line-height:1.4">' + (typeof escHtml === 'function' ? escHtml(message) : String(message == null ? '' : message)) + '</div>'
-    + '  <button onclick="this.closest(\'div\').parentElement.remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;line-height:1;flex-shrink:0">×</button>'
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">'
+    + '  <div style="font-size:12.5px;color:#fff;line-height:1.4;flex:1">' + bodyContent + '</div>'
+    + '  <button onclick="this.closest(\'div\').parentElement.remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;line-height:1;flex-shrink:0" aria-label="Tutup">×</button>'
     + '</div>';
 
   toastContainer.appendChild(toast);

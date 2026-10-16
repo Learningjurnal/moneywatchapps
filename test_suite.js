@@ -10830,6 +10830,11 @@ test('FEATURE: analyzeInvezgoDisclosures() provides executive resume, historical
   assert(/function dossierCheckAndNotifyDisclosure/.test(dossierSrc), 'dossierCheckAndNotifyDisclosure must exist in 46-stock-dossier.js');
   assert(/MW_DISCLOSURE_SNAP_/.test(dossierSrc), 'Must persist disclosure snapshot to detect new updates');
   assert(/Analisis Insight Aksi Korporasi/.test(dossierSrc), 'dossierRenderDisclosureList must render the Executive Insight & Corporate Action card');
+  assert(/showToast\(notifHtml,\s*\{\s*durationMs:\s*\d+,\s*isHtml:\s*true\s*\}\)/.test(dossierSrc), 'dossierCheckAndNotifyDisclosure must pass isHtml: true to showToast');
+
+  // showToast in 03-engine.js checks
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/isHtml/.test(engineSrc), 'showToast must support isHtml option and markup auto-detection');
 });
 
 // ============================================================

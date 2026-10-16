@@ -1479,16 +1479,18 @@ function dossierCheckAndNotifyDisclosure(ticker, analysis) {
 
       if (typeof showToast === 'function') {
         var topInsight = (analysis.insights && analysis.insights[0]) ? analysis.insights[0] : null;
-        var resumeText = topInsight ? (topInsight.categoryLabel + ': ' + topInsight.resume) : analysis.executiveSummary;
+        var rawResume = topInsight ? (topInsight.categoryLabel + ': ' + topInsight.resume) : analysis.executiveSummary;
+        var safeResume = typeof escHtml === 'function' ? escHtml(rawResume) : rawResume;
+        var safeAction = typeof escHtml === 'function' ? escHtml(analysis.recommendedAction || 'MONITOR') : (analysis.recommendedAction || 'MONITOR');
         var notifHtml = '<div style="display:flex;align-items:flex-start;gap:8px">'
           + '<i class="ti ti-bell-ringing" style="color:#10b981;font-size:18px;margin-top:2px;flex-shrink:0"></i>'
           + '<div>'
-          + '  <div style="font-weight:800;font-size:12px;color:#fff;margin-bottom:2px">Insight Keterbukaan Informasi [' + ticker + ']</div>'
-          + '  <div style="font-size:11px;color:var(--text2);line-height:1.35;margin-bottom:4px">' + resumeText + '</div>'
-          + '  <div style="font-size:10.5px;font-weight:700;color:#38bdf8"><i class="ti ti-arrow-right"></i> Opsi Aksi: ' + analysis.recommendedAction + '</div>'
+          + '  <div style="font-weight:800;font-size:12px;color:#fff;margin-bottom:2px">Insight Keterbukaan Informasi [' + escHtml(ticker) + ']</div>'
+          + '  <div style="font-size:11px;color:var(--text2);line-height:1.35;margin-bottom:4px">' + safeResume + '</div>'
+          + '  <div style="font-size:10.5px;font-weight:700;color:#38bdf8"><i class="ti ti-arrow-right"></i> Opsi Aksi: ' + safeAction + '</div>'
           + '</div>'
           + '</div>';
-        showToast(notifHtml, { durationMs: 7500 });
+        showToast(notifHtml, { durationMs: 7500, isHtml: true });
       }
     }
   } catch (e) {
