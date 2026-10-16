@@ -135,6 +135,46 @@ test('calculatePositionSizing: menjaga buffer kas minimum 20%', () => {
   assert.strictEqual(res.reason, 'INSUFFICIENT_CASH_OR_BUFFER_FOR_1_LOT');
 });
 
+test('calculatePositionSizing: menghitung SL & TP dinamis berbasis volatilitas ATR (Triple-Barrier)', () => {
+  const equity = 100000000;
+  const cash = 50000000;
+  const entryPrice = 5000;
+  const atr = 200; // Volatilitas ATR = 200
+
+  // Dynamic SL = entryPrice - (1.5 * 200) = 5000 - 300 = 4700
+  // Dynamic TP = entryPrice + (3.0 * 200) = 5000 + 600 = 5600 (R:R 1:2)
+  const res = calculatePositionSizing({ equity, cash, entryPrice, atr });
+  assert.strictEqual(res.approved, true);
+  assert.strictEqual(res.stopLoss, 4700);
+  assert.strictEqual(res.takeProfit, 5600);
+  assert.strictEqual(res.shares, 3000);
+  assert.strictEqual(res.maxHoldingDays, 10);
+});
+
+test('calculatePositionSizing: menolak order jika mtfMultiplier bernilai 0 (Distribution / Bearish)', () => {
+  const equity = 100000000;
+  const cash = 50000000;
+  const entryPrice = 5000;
+  const stopLoss = 4800;
+
+  const res = calculatePositionSizing({ equity, cash, entryPrice, stopLoss, mtfMultiplier: 0 });
+  assert.strictEqual(res.approved, false);
+  assert.strictEqual(res.reason, 'REJECTED_BY_MTF_ALIGNMENT');
+});
+
+test('calculatePositionSizing: memotong ukuran posisi separuh (0.5x) saat Counter-Trend Bounce', () => {
+  const equity = 100000000;
+  const cash = 50000000;
+  const entryPrice = 5000;
+  const stopLoss = 4800; // Normal sizing = 3000 shares (30 lot)
+
+  const res = calculatePositionSizing({ equity, cash, entryPrice, stopLoss, mtfMultiplier: 0.5 });
+  assert.strictEqual(res.approved, true);
+  assert.strictEqual(res.shares, 1500); // 15 lot
+  assert.strictEqual(res.lots, 15);
+});
+
+
 // ── 3. TEST EVALUASI EXIT, MFE/MAE & TRAILING STOP ─────────────────────
 test('evaluatePositionExit: memicu STOP_LOSS saat harga menyentuh atau di bawah SL', () => {
   const pos = {
@@ -187,6 +227,23 @@ test('evaluatePositionExit: mengaktifkan trailing stop dinamis saat profit >= +5
   assert.strictEqual(step2.shouldExit, true);
   assert.strictEqual(step2.exitReason, 'TRAILING_STOP');
   assert.strictEqual(step2.exitPrice, 5141);
+});
+
+test('evaluatePositionExit: memicu TIME_STOP saat holding bars mencapai maxHoldingDays (Triple-Barrier Time Barrier)', () => {
+  const pos = {
+    entryPrice: 5000,
+    stopLoss: 4700,
+    takeProfit: 5600,
+    highWaterMark: 5100,
+    lowWaterMark: 4950,
+    maxHoldingDays: 10
+  };
+
+  // Posisi ditahan 10 hari, harga 5050 (belum kena TP 5600, belum kena SL 4700)
+  const evalRes = evaluatePositionExit(pos, 5050, { holdingBars: 10 });
+  assert.strictEqual(evalRes.shouldExit, true);
+  assert.strictEqual(evalRes.exitReason, 'TIME_STOP');
+  assert.strictEqual(evalRes.exitPrice, 5050);
 });
 
 // ── 4. TEST KALIBRASI BOBOT ADAPTIF ───────────────────────────────────
@@ -254,6 +311,11 @@ test('classifyTradeError: mendeteksi REGIME_ERROR saat bursa berubah menjadi BEA
 test('classifyTradeError: mendeteksi SIGNAL_ERROR saat false breakout (MFE < 1% langsung kena SL)', () => {
   const trade = { result: 'LOSS', mfePct: 0.2, maePct: -3.0, rMultiple: -1.0, exitReason: 'STOP_LOSS' };
   assert.strictEqual(classifyTradeError(trade), 'SIGNAL_ERROR');
+});
+
+test('classifyTradeError: mendeteksi TIME_STOP_STAGNANT saat posisi terkena time barrier', () => {
+  const trade = { result: 'LOSS', mfePct: 1.0, maePct: -1.0, rMultiple: -0.2, exitReason: 'TIME_STOP' };
+  assert.strictEqual(classifyTradeError(trade), 'TIME_STOP_STAGNANT');
 });
 
 // ── 5. TEST RUNNER SIKLUS AUTONOMOUS PENUH ────────────────────────────

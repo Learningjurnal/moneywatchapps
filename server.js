@@ -5068,6 +5068,123 @@ app.get('/api/strategy-engine/conglomerates', (req, res) => {
   }
 });
 
+// GET /api/strategy-engine/conglomerate-matrix
+// Aggregates real-time performance, intra-group breadth, leader vs laggard,
+// and catch-up opportunities across all 11 IDX conglomerate groups. Cached for 3 mins.
+let _conglomerateMatrixCache = null;
+let _conglomerateMatrixCacheTime = 0;
+const CONGLOMERATE_MATRIX_TTL_MS = 3 * 60 * 1000;
+
+app.get('/api/strategy-engine/conglomerate-matrix', async (req, res) => {
+  try {
+    const forceRefresh = req.query.refresh === 'true';
+    if (!forceRefresh && _conglomerateMatrixCache && (Date.now() - _conglomerateMatrixCacheTime < CONGLOMERATE_MATRIX_TTL_MS)) {
+      return res.json({ success: true, cached: true, ..._conglomerateMatrixCache });
+    }
+
+    const filePath = path.join(__dirname, 'data', 'conglomerates.json');
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: 'Data konglomerasi tidak ditemukan' });
+    }
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const groups = Array.isArray(raw.groups) ? raw.groups : [];
+    const relations = Array.isArray(raw.relations) ? raw.relations : [];
+
+    const activeRelations = relations.filter(r => r.ticker && (r.status === 'VERIFIED' || r.status === 'REVIEW'));
+    const uniqueTickers = [...new Set(activeRelations.map(r => String(r.ticker).toUpperCase().replace(/\.JK$/i, '').trim()))];
+
+    const quoteResults = await fetchYahooQuoteBatched(uniqueTickers, 10);
+    const quotes = {};
+    quoteResults.forEach((r, idx) => {
+      const tk = uniqueTickers[idx];
+      if (r.status === 'fulfilled' && r.value) {
+        quotes[tk] = r.value;
+      }
+    });
+
+    const processedGroups = groups.map(g => {
+      const rels = activeRelations.filter(r => r.group_id === g.group_id);
+      const members = rels.map(r => {
+        const tk = String(r.ticker).toUpperCase().trim();
+        const q = quotes[tk] || null;
+        const price = (q && typeof q.price === 'number') ? q.price : null;
+        const changePct = (q && typeof q.changePercent === 'number') ? q.changePercent : 0;
+        const volume = (q && typeof q.volume === 'number') ? q.volume : 0;
+        const isSimulated = !!(q && q.isSimulated);
+        return {
+          ticker: tk,
+          relationType: r.relation_type,
+          ownershipPct: r.ownership_pct || null,
+          price,
+          changePercent: Math.round(changePct * 100) / 100,
+          volume,
+          isSimulated
+        };
+      });
+
+      const validMembers = members.filter(m => m.price != null && !m.isSimulated);
+      const advancers = validMembers.filter(m => m.changePercent > 0).length;
+      const decliners = validMembers.filter(m => m.changePercent < 0).length;
+      const unchanged = validMembers.filter(m => m.changePercent === 0).length;
+      const avgChange = validMembers.length > 0
+        ? Math.round((validMembers.reduce((sum, m) => sum + m.changePercent, 0) / validMembers.length) * 100) / 100
+        : 0;
+      const breadthPct = validMembers.length > 0 ? Math.round((advancers / validMembers.length) * 100) : 0;
+
+      const sorted = [...members].sort((a, b) => b.changePercent - a.changePercent);
+      const leader = sorted.length > 0 ? sorted[0] : null;
+      const laggard = sorted.length > 1 ? sorted[sorted.length - 1] : null;
+
+      let catchUpOpportunity = null;
+      if (leader && laggard && leader.changePercent >= 2.0 && (leader.changePercent - laggard.changePercent >= 2.5)) {
+        catchUpOpportunity = {
+          leaderTicker: leader.ticker,
+          leaderChangePct: leader.changePercent,
+          laggardTicker: laggard.ticker,
+          laggardChangePct: laggard.changePercent,
+          spreadPct: Math.round((leader.changePercent - laggard.changePercent) * 100) / 100,
+          note: `${laggard.ticker} (${laggard.changePercent >= 0 ? '+' : ''}${laggard.changePercent}%) tertinggal ${Math.round((leader.changePercent - laggard.changePercent) * 10) / 10}% di belakang ${leader.ticker} (+${leader.changePercent}%) dalam satu grup konglomerasi ${g.group_name}.`
+        };
+      }
+
+      return {
+        groupId: g.group_id,
+        groupName: g.group_name,
+        anchorPerson: g.anchor_person,
+        sector: g.sector,
+        memberCount: members.length,
+        avgChangePct: avgChange,
+        breadthPct,
+        advancers,
+        decliners,
+        unchanged,
+        leader,
+        laggard,
+        catchUpOpportunity,
+        members: sorted
+      };
+    });
+
+    processedGroups.sort((a, b) => b.avgChangePct - a.avgChangePct);
+
+    const payload = {
+      timestamp: Date.now(),
+      totalGroups: processedGroups.length,
+      totalTickersMonitored: uniqueTickers.length,
+      groups: processedGroups
+    };
+
+    _conglomerateMatrixCache = payload;
+    _conglomerateMatrixCacheTime = Date.now();
+
+    return res.json({ success: true, cached: false, ...payload });
+  } catch (err) {
+    console.error('[Strategy Engine Conglomerate Matrix Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+
 // GET /api/strategy-engine/daily-picks?limit=10 — sidebar widget source.
 // Read-only: merges the day's (or most recent trading day's) already-
 // persisted STRONG/QUALIFIED signals across all 4 strategies, re-runs the

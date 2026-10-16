@@ -745,7 +745,16 @@ with open(${JSON.stringify(workflowPath)}) as f:
     // workflow_dispatch (manual) must still be able to override.
     assert(/INPUT_STRATEGY:\$\{\{github\.event\.inputs\.strategy\}\}/.test(src.replace(/\s/g, '')), 'REGRESSION: manual workflow_dispatch can no longer override the strategy id');
   });
+
+  await asyncTest('server.js: GET /api/strategy-engine/conglomerate-matrix is registered with rotation metrics', async () => {
+    const fs = await import('fs');
+    const serverSrc = fs.readFileSync('server.js', 'utf8');
+    assert(serverSrc.includes("app.get('/api/strategy-engine/conglomerate-matrix'"), 'REGRESSION: /api/strategy-engine/conglomerate-matrix route is missing');
+    assert(serverSrc.includes('catchUpOpportunity'), 'REGRESSION: conglomerate-matrix must calculate catch-up opportunities');
+    assert(serverSrc.includes('breadthPct'), 'REGRESSION: conglomerate-matrix must calculate breadthPct');
+  });
 })();
+
 
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} STRATEGY ENGINE TESTS PASSED SUCCESSFULLY!`);
