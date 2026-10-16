@@ -5105,7 +5105,7 @@ app.get('/api/strategy-engine/conglomerate-matrix', async (req, res) => {
     const processedGroups = groups.map(g => {
       const rels = activeRelations.filter(r => r.group_id === g.group_id);
       const members = rels.map(r => {
-        const tk = String(r.ticker).toUpperCase().trim();
+        const tk = String(r.ticker).toUpperCase().replace(/\.JK$/i, '').trim();
         const q = quotes[tk] || null;
         const price = (q && typeof q.price === 'number') ? q.price : null;
         const changePct = (q && typeof q.changePercent === 'number') ? q.changePercent : 0;
@@ -5131,7 +5131,7 @@ app.get('/api/strategy-engine/conglomerate-matrix', async (req, res) => {
         : 0;
       const breadthPct = validMembers.length > 0 ? Math.round((advancers / validMembers.length) * 100) : 0;
 
-      const sorted = [...members].sort((a, b) => b.changePercent - a.changePercent);
+      const sorted = [...validMembers].sort((a, b) => b.changePercent - a.changePercent);
       const leader = sorted.length > 0 ? sorted[0] : null;
       const laggard = sorted.length > 1 ? sorted[sorted.length - 1] : null;
 

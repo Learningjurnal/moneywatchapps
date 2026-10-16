@@ -2744,12 +2744,15 @@
       var dq = h.dataQuality || {};
       var wyckoff = h.wyckoff || {};
       var mtf = h.multiTimeframe || {};
-      var wyckoffColor = wyckoff.phase === 'PHASE_2_MARKUP' ? 'var(--green)' : wyckoff.phase === 'PHASE_1_ACCUMULATION' ? 'var(--cyan)' : wyckoff.phase === 'PHASE_4_MARKDOWN' ? 'var(--red)' : 'var(--amber)';
+      var wyckoffColor = (wyckoff.phase === 'MARKUP' || wyckoff.phase === 'PHASE_2_MARKUP') ? 'var(--green)'
+                       : (wyckoff.phase === 'ACCUMULATION' || wyckoff.phase === 'PHASE_1_ACCUMULATION') ? 'var(--cyan)'
+                       : (wyckoff.phase === 'MARKDOWN' || wyckoff.phase === 'PHASE_4_MARKDOWN') ? 'var(--red)'
+                       : 'var(--amber)';
       var mtfColor = mtf.alignment === 'STRONG_BULLISH_CONFLUENCE' ? 'var(--green)' : mtf.alignment === 'PULLBACK_IN_UPTREND' ? 'var(--cyan)' : mtf.alignment === 'DISTRIBUTION_BREAKDOWN' ? 'var(--red)' : 'var(--amber)';
       var phaseBadges = '';
       if (wyckoff.phase && wyckoff.phase !== 'UNKNOWN') {
         phaseBadges += '<span style="font-size:10.5px;font-family:var(--font-mono);font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid ' + wyckoffColor + ';color:' + wyckoffColor + '">'
-          + '🏛️ ' + (wyckoff.phaseName || wyckoff.phase) + ' (' + wyckoff.confidence + '%)</span>';
+          + '🏛️ ' + (wyckoff.phaseName || wyckoff.phaseLabel || wyckoff.phase) + ' (' + wyckoff.confidence + '%)</span>';
       }
       if (mtf.alignment && mtf.alignment !== 'UNKNOWN') {
         phaseBadges += '<span style="font-size:10.5px;font-family:var(--font-mono);font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid ' + mtfColor + ';color:' + mtfColor + '">'
