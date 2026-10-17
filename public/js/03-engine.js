@@ -361,12 +361,31 @@ function calcPortfolioDayGain(){
       sahamPrevMv += mv;
     }
   });
-  var sahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+  var rawSahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+
+  var schedule = (typeof isIdxMarketOpen === 'function') ? isIdxMarketOpen() : { isOpen: true, isTradingDay: true, session: 'SESI_1', reason: 'Sesi Perdagangan' };
+  var isTradingToday = (typeof isIdxTradingDay === 'function') ? isIdxTradingDay() : true;
+  var isPreMarket = (schedule && schedule.session === 'PRE_MARKET');
+
+  // Jika hari ini libur bursa / akhir pekan / sebelum jam buka (pre-market):
+  // Delta saham untuk HARI INI adalah Rp 0 (0.00%) karena belum/tidak ada pergerakan pasar baru hari ini.
+  // Hasil sesi bursa sebelumnya disimpan di lastTradingDayGain & lastTradingDayPct agar tidak tertukar/dibaca 2x.
+  var isMarketActiveToday = isTradingToday && !isPreMarket;
+
+  var effectiveDayGain = isMarketActiveToday ? Math.round(sahamDayGain) : 0;
+  var effectiveDayPct = isMarketActiveToday ? rawSahamDayPct : 0;
+
   return {
-    dayGain: Math.round(sahamDayGain),
-    dayPct: sahamDayPct,
-    prevMv: sahamPrevMv,
-    sahamMv: sahamMv
+    dayGain: effectiveDayGain,
+    dayPct: effectiveDayPct,
+    prevMv: isMarketActiveToday ? sahamPrevMv : sahamMv,
+    sahamMv: sahamMv,
+    isMarketOpen: schedule.isOpen === true,
+    isTradingDay: isTradingToday,
+    session: schedule.session || 'CLOSED',
+    marketStatusText: schedule.reason || (isMarketActiveToday ? 'Pasar Aktif' : 'Bursa Libur'),
+    lastTradingDayGain: Math.round(sahamDayGain),
+    lastTradingDayPct: rawSahamDayPct
   };
 }
 
@@ -731,6 +750,36 @@ function equitySnapshotToday(){
   if(!transactions.length && !(rdnMutations&&rdnMutations.length)) return [];
   
   var today=new Date().toISOString().slice(0,10);
+  var isTrading = (typeof isIdxTradingDay === 'function') ? isIdxTradingDay() : true;
+
+  // Cek apakah ada transaksi atau mutasi riil hari ini
+  var hasTxToday = false;
+  if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+    hasTxToday = transactions.some(function(t){ return t.date === today; });
+  }
+  if (!hasTxToday && typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) {
+    hasTxToday = rdnMutations.some(function(m){ return m.date === today; });
+  }
+  if (!hasTxToday && typeof cryptoTx !== 'undefined' && Array.isArray(cryptoTx)) {
+    hasTxToday = cryptoTx.some(function(c){ return c.date === today; });
+  }
+
+  // Jika hari ini libur bursa / akhir pekan DAN tidak ada transaksi baru:
+  // JANGAN mencatat snapshot baru dengan harga sebelumnya (hindari duplikasi tanggal libur).
+  if (!isTrading && !hasTxToday) {
+    var existingHist = equityHistoryLoad();
+    // Jika entri terakhir kebetulan tanggal hari libur ini tanpa transaksi (mis. tercatat sebelum perbaikan),
+    // hapus snapshot redundan tersebut agar tidak menduplikasi hari libur.
+    if (existingHist && existingHist.length > 0) {
+      var lastEntry = existingHist[existingHist.length - 1];
+      if (lastEntry && lastEntry.date === today) {
+        existingHist.pop();
+        equityHistorySave(existingHist);
+      }
+    }
+    return existingHist || [];
+  }
+
   var aum=computeCurrentAUM();
   if(aum <= 0) return equityHistoryLoad();
 
@@ -762,10 +811,27 @@ function validateAndSyncEquityHistory(forceRebuild){
   var rebuilt = rebuildEquityHistoryFromTransactions(hist, true, MW_PRICE_HIST);
   
   var today = new Date().toISOString().slice(0,10);
+  var isTrading = (typeof isIdxTradingDay === 'function') ? isIdxTradingDay() : true;
+  var hasTxToday = false;
+  if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+    hasTxToday = transactions.some(function(t){ return t.date === today; });
+  }
+  if (!hasTxToday && typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) {
+    hasTxToday = rdnMutations.some(function(m){ return m.date === today; });
+  }
+  if (!hasTxToday && typeof cryptoTx !== 'undefined' && Array.isArray(cryptoTx)) {
+    hasTxToday = cryptoTx.some(function(c){ return c.date === today; });
+  }
+
   if(rebuilt.length > 0 && currentAum > 0){
     var last = rebuilt[rebuilt.length-1];
     if(last.date === today){
-      last.equity = currentAum;
+      if (!isTrading && !hasTxToday) {
+        // Jangan simpan snapshot hari libur tanpa transaksi di ujung history
+        rebuilt.pop();
+      } else {
+        last.equity = currentAum;
+      }
     }
   }
   
@@ -1552,7 +1618,13 @@ function fhFetchIHSG(){
       realChg,
       realChgPct
     );
-    fhSetBadge('live','● LIVE');
+    var sched = (typeof isIdxMarketOpen === 'function') ? isIdxMarketOpen() : { isOpen: true };
+    if (sched && sched.isOpen) {
+      fhSetBadge('live','● LIVE');
+    } else {
+      var offText = sched.dayName === 'Sabtu' || sched.dayName === 'Minggu' ? '● Akhir Pekan' : (sched.holidayName ? '● Libur Bursa' : '● Tutup');
+      fhSetBadge('off', offText);
+    }
   });
 }
 
@@ -1649,7 +1721,13 @@ function fhFetchStocks(force){
         });
         if(updated){
           window._lastPortoQuotesFetch = Date.now();
-          fhSetBadge('live', '● LIVE');
+          var sched = (typeof isIdxMarketOpen === 'function') ? isIdxMarketOpen() : { isOpen: true };
+          if (sched && sched.isOpen) {
+            fhSetBadge('live', '● LIVE');
+          } else {
+            var offText = sched.dayName === 'Sabtu' || sched.dayName === 'Minggu' ? '● Akhir Pekan' : (sched.holidayName ? '● Libur Bursa' : '● Tutup');
+            fhSetBadge('off', offText);
+          }
           _triggerRenderAfterPrice();
           return;
         }

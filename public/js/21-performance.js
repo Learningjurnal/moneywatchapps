@@ -127,10 +127,16 @@ function perfRenderEquity(period){
     var displayPnl = rawDiff;
     var dayPct = null;
 
-    if (isToday && todayGainObj && typeof todayGainObj.dayGain === 'number' && todayGainObj.dayGain !== 0) {
-      // Sinkronkan baris hari ini dengan pergerakan pasar hari ini (Day Gain riil)
-      displayPnl = todayGainObj.dayGain;
-      dayPct = todayGainObj.dayPct;
+    if (isToday && todayGainObj) {
+      if (todayGainObj.isTradingDay && typeof todayGainObj.dayGain === 'number' && todayGainObj.dayGain !== 0) {
+        // Sinkronkan baris hari ini dengan pergerakan pasar hari ini (Day Gain riil)
+        displayPnl = todayGainObj.dayGain;
+        dayPct = todayGainObj.dayPct;
+      } else if (!todayGainObj.isTradingDay) {
+        // Hari libur bursa / akhir pekan: pergerakan hari ini adalah 0
+        displayPnl = 0;
+        dayPct = 0;
+      }
     }
 
     return {
@@ -145,6 +151,8 @@ function perfRenderEquity(period){
       dayTarik: dayTarik
     };
   });
+
+  var marketSchedule = (typeof isIdxMarketOpen === 'function') ? isIdxMarketOpen() : { isOpen: true };
 
   el('perf-eq-tbody').innerHTML = rows.length ? rows.map(function(r){
     var cfBadge = '';
@@ -171,7 +179,14 @@ function perfRenderEquity(period){
       ? 'P&L Saham Hari Ini: ' + sign + 'Rp ' + fmt(Math.abs(r.displayPnl)) + ' (' + (r.dayPct >= 0 ? '+' : '') + r.dayPct.toFixed(2) + '%) | Ekuitas: Rp ' + fmt(Math.round(r.equity))
       : 'P&L Harian: ' + sign + 'Rp ' + fmt(Math.round(r.displayPnl)) + ' | Ekuitas: Rp ' + fmt(Math.round(r.equity));
 
-    return '<tr><td class="mono" style="font-size:11px">'+r.date+(r.isToday ? ' <span style="font-size:9px;color:var(--accent);font-weight:700">LIVE</span>' : '')+'</td>'
+    var todayBadgeHtml = '';
+    if (r.isToday) {
+      todayBadgeHtml = marketSchedule.isOpen
+        ? ' <span style="font-size:9px;color:var(--accent);font-weight:700">LIVE</span>'
+        : ' <span style="font-size:9px;color:var(--amber);font-weight:700">TUTUP</span>';
+    }
+
+    return '<tr><td class="mono" style="font-size:11px">'+r.date+todayBadgeHtml+'</td>'
       +'<td class="mono" style="font-size:11px">Rp '+fmtK(r.equity)+'</td>'
       +'<td class="mono '+(isUp?'up':'dn')+'" style="font-size:11px" title="'+tip+'">'
       + pnlHtml

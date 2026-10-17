@@ -53,7 +53,10 @@ function renderDailyBriefPage() {
     try { fhFetchIHSG(); } catch(e) {}
   }
 
-  // Compute dynamic daily change for each portfolio holding
+  // Compute dynamic daily change for each portfolio holding via canonical financial engine
+  var dayGainObj = (typeof calcPortfolioDayGain === 'function') ? calcPortfolioDayGain() : null;
+  var isMarketActive = dayGainObj ? (dayGainObj.isTradingDay && dayGainObj.session !== 'PRE_MARKET') : true;
+
   porto.forEach(function(p) {
     var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
     var chg = 0;
@@ -64,12 +67,13 @@ function renderDailyBriefPage() {
     } else if (typeof getGlobalMarketChange === 'function') {
       chg = getGlobalMarketChange(p.ticker);
     }
-    p.dynamicChgPct = chg;
-    p.chgPct = chg;
+    p.dynamicChgPct = isMarketActive ? chg : 0;
+    p.lastSessionChgPct = chg;
+    p.chgPct = isMarketActive ? chg : 0;
   });
 
-  var dayGain = porto.reduce(function(a, p) { return a + ((p.mv || 0) * (p.dynamicChgPct || 0) / 100); }, 0);
-  var dayGainPct = totalMV > 0 ? (dayGain / totalMV * 100).toFixed(2) : '0.00';
+  var dayGain = dayGainObj ? dayGainObj.dayGain : porto.reduce(function(a, p) { return a + ((p.mv || 0) * (p.dynamicChgPct || 0) / 100); }, 0);
+  var dayGainPct = dayGainObj ? Number(dayGainObj.dayPct).toFixed(2) : (totalMV > 0 ? (dayGain / totalMV * 100).toFixed(2) : '0.00');
   var totalPortfolioAssets = totalMV + Math.max(0, rdn);
 
   // Live IHSG calculation
@@ -81,7 +85,9 @@ function renderDailyBriefPage() {
   // menginisialisasi ihsgCur=6500.83 saat load, juga > 0) — pakai flag
   // window._ihsgLiveFetched (03-engine.js's fhApplyIHSG) yang cuma jadi
   // true setelah harga IHSG real benar-benar diterapkan.
+  var marketSched = (typeof isIdxMarketOpen === 'function') ? isIdxMarketOpen() : { isOpen: true };
   var isIhsgLive = window._ihsgLiveFetched === true;
+  var ihsgStatusText = marketSched.isOpen ? (isIhsgLive ? 'Real-time Feed' : 'Data Belum Tersedia (Estimasi)') : ('Pasar Tutup · ' + (marketSched.reason || 'Bursa Tutup'));
   var curIhsg = (typeof ihsgCur === 'number' && ihsgCur > 0) ? ihsgCur : 6845.00;
   var baseIhsg = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : 6800.00;
   var ihsgDiff = (typeof window.ihsgChg === 'number') ? window.ihsgChg : (curIhsg - baseIhsg);
@@ -137,8 +143,11 @@ function renderDailyBriefPage() {
     + '<div class="metric" id="db-regime-card">' + dbRegimeCardInner() + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">ESTIMASI DELTA PORTOFOLIO HARI INI</div>'
-      + '<div class="mval ' + (dayGain >= 0 ? 'up' : 'dn') + '" style="font-size:22px">' + (dayGain >= 0 ? '+' : '') + 'Rp ' + fmtK(dayGain) + ' (' + (dayGainPct >= 0 ? '+' : '') + dayGainPct + '%)</div>'
-      + '<div class="msub neu">Berdasarkan seluruh ' + porto.length + ' emiten aktif di portofolio</div>'
+      + (isMarketActive
+        ? ('<div class="mval ' + (dayGain >= 0 ? 'up' : 'dn') + '" style="font-size:22px">' + (dayGain >= 0 ? '+' : '') + 'Rp ' + fmtK(dayGain) + ' (' + (dayGainPct >= 0 ? '+' : '') + dayGainPct + '%)</div>'
+           + '<div class="msub neu">Berdasarkan seluruh ' + porto.length + ' emiten aktif di portofolio</div>')
+        : ('<div class="mval neu" style="font-size:22px">Rp 0 (0.00%)</div>'
+           + '<div class="msub amb" style="font-size:11px">' + (dayGainObj ? dayGainObj.marketStatusText : 'Bursa Libur') + ' · Sesi Terakhir: ' + (dayGainObj && dayGainObj.lastTradingDayGain >= 0 ? '+' : '') + 'Rp ' + fmtK(dayGainObj ? dayGainObj.lastTradingDayGain : 0) + ' (' + (dayGainObj && dayGainObj.lastTradingDayPct >= 0 ? '+' : '') + (dayGainObj ? Number(dayGainObj.lastTradingDayPct).toFixed(2) : '0.00') + '%)</div>'))
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">STATUS LIKUIDITAS KAS RDN</div>'
@@ -175,7 +184,7 @@ function renderDailyBriefPage() {
       return '<div class="card" style="padding:0;margin-bottom:18px;overflow:hidden">'
         + '<div style="display:flex;flex-wrap:wrap">'
           + '<div style="flex:1 1 440px;min-width:280px;padding:18px 20px 12px">'
-            + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan · <span style="' + (isIhsgLive ? '' : 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:0 6px;') + '">' + (isIhsgLive ? 'Real-time Feed' : 'Data Belum Tersedia (Estimasi)') + '</span></div>'
+            + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan · <span style="' + (isIhsgLive ? '' : 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:0 6px;' + (marketSched.isOpen ? '' : 'color:var(--amber);')) + '">' + ihsgStatusText + '</span></div>'
             + '<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px;margin-bottom:10px">'
               + '<span style="font-size:24px;font-weight:700;font-family:var(--font-mono)">' + fmtIdx(curIhsg) + '</span>'
               + '<span class="' + (isBullish ? 'up' : 'dn') + '" style="font-size:13px;font-weight:600">' + (isBullish ? '▲' : '▼') + ' ' + (isBullish ? '+' : '') + ihsgDiff.toFixed(2) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%)</span>'

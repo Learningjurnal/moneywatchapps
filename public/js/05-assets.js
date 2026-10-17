@@ -2496,8 +2496,13 @@ function renderPortfolioHub(){
 
   if(el('hub-saham-day-chg')) {
     if(porto.length === 0 || sahamDayGain === 0) {
-      el('hub-saham-day-chg').textContent = 'Rp 0 (0.00%)';
+      var noteStatus = (dayGainData && !dayGainData.isTradingDay) ? ' (Bursa Libur)' : '';
+      el('hub-saham-day-chg').textContent = 'Rp 0 (0.00%)' + noteStatus;
       el('hub-saham-day-chg').style.color = 'var(--text)';
+      if(dayGainData && !dayGainData.isTradingDay && dayGainData.lastTradingDayGain) {
+        var signLast = dayGainData.lastTradingDayGain >= 0 ? '+' : '';
+        el('hub-saham-day-chg').title = dayGainData.marketStatusText + '. Sesi terakhir: ' + signLast + 'Rp ' + fmt(dayGainData.lastTradingDayGain) + ' (' + signLast + Number(dayGainData.lastTradingDayPct).toFixed(2) + '%)';
+      }
     } else {
       var signDay = sahamDayGain > 0 ? '+' : '-';
       el('hub-saham-day-chg').textContent = signDay + 'Rp ' + fmt(Math.abs(Math.round(sahamDayGain))) + ' (' + (sahamDayPct >= 0 ? '+' : '') + sahamDayPct.toFixed(2) + '%)';
