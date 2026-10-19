@@ -10122,6 +10122,39 @@ test('functional: renderVolTopContributors() ranks the real top-3 holdings by we
   assert(idxAdro === -1, 'REGRESSION: more than the top 3 contributors are shown (ADRO, the 4th-ranked, should be excluded)');
 });
 
+test('functional: renderVolTopContributors() renders company logo when getStockLogoHtml is available', () => {
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+  const fnMatch = jsSrc.match(/function renderVolTopContributors\(risk\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'renderVolTopContributors() not found');
+
+  const mockMount = { innerHTML: '' };
+  const mockLogoCalls = [];
+  const sandbox = {
+    el: (id) => (id === 'vol-top-contributors' ? mockMount : null),
+    getStockLogoHtml: (ticker, size) => {
+      mockLogoCalls.push({ ticker, size });
+      return '<span class="stock-logo-wrap" title="' + ticker + '"><img src="' + ticker + '.png"/></span>';
+    }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext('var renderVolTopContributors = ' + fnMatch[0], sandbox);
+
+  const risk = {
+    assets: [
+      { id: 'PGEO', name: 'PGEO - Pertamina Geothermal Energy Tbk.', type: 'saham', weight: 0.184, vol: 0.432 },
+      { id: 'BBRI', name: 'BBRI - Bank Rakyat Indonesia', type: 'saham', weight: 0.149, vol: 0.409 },
+      { id: 'BBCA', name: 'BBCA - Bank Central Asia', type: 'saham', weight: 0.091, vol: 0.398 }
+    ]
+  };
+  sandbox.renderVolTopContributors(risk);
+
+  const html = mockMount.innerHTML;
+  assert(html.includes('PGEO.png') && html.includes('BBRI.png') && html.includes('BBCA.png'),
+    'REGRESSION: company logos are missing from Top Kontributor Risiko output');
+  assert(mockLogoCalls.length === 3, 'expected getStockLogoHtml to be called for all 3 top contributors');
+  assert(mockLogoCalls[0].ticker === 'PGEO' && mockLogoCalls[0].size === 20, 'expected PGEO logo at size 20');
+});
+
 // ═══════════════════════════════════════════════════════════════════════
 // CLAUDE.md Aturan #4 (2026-09-27): "Desain UI institusional & clean" —
 // satu komponen ikon-info SVG reusable (uiInfoIcon(), 03-engine.js) yang

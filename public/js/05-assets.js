@@ -2322,7 +2322,7 @@ function renderVolTopContributors(risk) {
     return;
   }
   var ranked = assets.slice()
-    .map(function (a) { return { name: a.name, type: a.type, weight: a.weight, vol: a.vol, contrib: a.weight * a.vol }; })
+    .map(function (a) { return { id: a.id, name: a.name, type: a.type, weight: a.weight, vol: a.vol, contrib: a.weight * a.vol }; })
     .sort(function (a, b) { return b.contrib - a.contrib; })
     .slice(0, 3);
   var totalContrib = ranked.reduce(function (s, a) { return s + a.contrib; }, 0) || 1;
@@ -2332,10 +2332,33 @@ function renderVolTopContributors(risk) {
     var pctOfTop3 = (a.contrib / totalContrib) * 100;
     var barWidth = Math.max(4, (a.contrib / maxContrib) * 100);
     var isLast = idx === ranked.length - 1;
+    var rawTicker = (a.id || '').trim();
+    if (!rawTicker && a.name) {
+      var parts = a.name.split(' - ');
+      if (parts.length > 1) {
+        rawTicker = parts[0].trim();
+      } else {
+        var m = a.name.match(/^([A-Za-z0-9]+)/);
+        if (m) rawTicker = m[1];
+      }
+    }
+    var cleanTicker = rawTicker.replace(/\.(JK|US)$/i, '');
+    var logoHtml = '';
+    if (a.type === 'crypto' && typeof CRYPTO_DB !== 'undefined' && CRYPTO_DB[cleanTicker]) {
+      var cInfo = CRYPTO_DB[cleanTicker];
+      var cBg = cInfo.color || '#f7931a';
+      var cIcon = cInfo.icon || cleanTicker.slice(0, 2);
+      logoHtml = '<span class="stock-logo-wrap" style="width:20px;height:20px;background:' + cBg + ';color:#ffffff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0" title="' + cleanTicker + '">' + cIcon + '</span>';
+    } else if (typeof getStockLogoHtml === 'function' && cleanTicker) {
+      logoHtml = getStockLogoHtml(cleanTicker, 20);
+    }
     return '<div style="display:flex;flex-direction:column;gap:6px;' + (isLast ? 'margin-bottom:2px' : 'margin-bottom:12px') + '">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;line-height:1.4">'
-      + '<span style="color:var(--text);font-weight:600;letter-spacing:0.01em">' + a.name + '</span>'
-      + '<span class="mono" style="color:var(--text3);font-size:10.5px">bobot ' + (a.weight * 100).toFixed(1) + '% · vol ' + (a.vol * 100).toFixed(1) + '%</span>'
+      + '<div style="display:inline-flex;align-items:center;gap:7px;min-width:0;flex:1;margin-right:8px">'
+      + logoHtml
+      + '<span style="color:var(--text);font-weight:600;letter-spacing:0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + a.name + '">' + a.name + '</span>'
+      + '</div>'
+      + '<span class="mono" style="color:var(--text3);font-size:10.5px;flex-shrink:0">bobot ' + (a.weight * 100).toFixed(1) + '% · vol ' + (a.vol * 100).toFixed(1) + '%</span>'
       + '</div>'
       + '<div style="width:100%;height:6px;background:var(--bg3);border-radius:4px;overflow:hidden">'
       + '<div style="width:' + barWidth.toFixed(1) + '%;height:100%;background:var(--amber);border-radius:4px"></div>'
