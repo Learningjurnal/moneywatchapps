@@ -1494,7 +1494,7 @@ function ihsgHistToday(ts){ var d = new Date(ts); return d.getFullYear()+'-'+d.g
         var filtered = [];
         for(var i=0;i<arr.length;i++){
           var v = arr[i];
-          if(typeof v === 'number' && !isNaN(v) && v > 5500 && v < 8000) filtered.push({v:v, t:tsArr[i]});
+          if(typeof v === 'number' && !isNaN(v) && v > 1000 && v < 25000) filtered.push({v:v, t:tsArr[i]});
         }
         var clean = [];
         for(var j=0; j<filtered.length; j++){
@@ -1521,7 +1521,7 @@ function ihsgHistToday(ts){ var d = new Date(ts); return d.getFullYear()+'-'+d.g
 function ihsgHistPush(v){
   if(typeof v !== 'number' || isNaN(v) || v <= 0) return;
   var rounded = Math.round(v * 100) / 100;
-  if(rounded < 5500 || rounded > 8000) return;
+  if(rounded < 1000 || rounded > 25000) return;
   var now = Date.now();
   // Jalur reset utama untuk kasus "tab dibiarkan terbuka semalaman" (tanpa
   // reload) — begitu titik pertama hari BERIKUTNYA masuk, seluruh histori

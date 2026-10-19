@@ -6305,6 +6305,24 @@ test('REGRESSION GUARD: Market Pulse IHSG chart must fetch real history for 5D/1
     'REGRESSION: rdEnsureIhsgHistory() no longer records a failure timestamp — a failed fetch would be silently retried on every re-render instead of backing off, hammering the shared proxy');
 });
 
+test('REGRESSION GUARD: Market Pulse 1D IHSG chart fetches real intraday 5m history with hour labels and accepts < 5500 prices', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const decisionSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const dataSrc = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+
+  // 1. IHSG_TF_RANGE has 1D configured
+  assert(/'1D':\s*\{\s*range:\s*'1d',\s*interval:\s*'5m'\s*\}/.test(engineSrc),
+    'REGRESSION: IHSG_TF_RANGE is missing the 1D timeframe or wrong interval/range');
+
+  // 2. 01-data.js accepts prices < 5500 (e.g. 4996.60 as seen in market correction)
+  assert(/rounded < 1000 \|\| rounded > 25000/.test(dataSrc),
+    'REGRESSION: ihsgHistPush() has overly restrictive bounds (< 5500) that drop valid market levels like 4996.60');
+
+  // 3. 28-decisiontools.js formats 1D with hour and minute
+  assert(/tf === '1D'[\s\S]*?hour:\s*'2-digit',\s*minute:\s*'2-digit'/.test(decisionSrc),
+    'REGRESSION: renderDailyBriefIhsgChart() does not format 1D points with hour and minute for x-axis');
+});
+
 // ── TEST: Shareholder/KSEI live-fetch from Invezgo (4 endpoints, all
 // schemas confirmed via real captured BBCA responses 2026-09-18, not a
 // guess) — number, ksei (9-category Asing/Lokal), classify-table (39-code

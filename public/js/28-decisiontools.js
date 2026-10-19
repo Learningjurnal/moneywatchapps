@@ -159,9 +159,17 @@ function renderDailyBriefPage() {
   // IHSG chart — layout ala Yahoo Finance: chart+tab rentang di kiri, panel statistik di kanan
   + (function(){
       var activeTf = window._dbIhsgTf || '1D';
-      var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
-      var dayLo = Math.min.apply(null, hist), dayHi = Math.max.apply(null, hist);
-      var openVal = hist[0];
+      var cache1d = (typeof IHSG_HIST_CACHE !== 'undefined' && IHSG_HIST_CACHE['1D'] && IHSG_HIST_CACHE['1D'].rows) ? IHSG_HIST_CACHE['1D'].rows : null;
+      var hist = (cache1d && cache1d.length >= 2)
+        ? cache1d.map(function(r){ return r.c; })
+        : ((typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg]);
+      var dayLo = (cache1d && cache1d.length >= 2)
+        ? Math.min.apply(null, cache1d.map(function(r){ return r.l != null ? r.l : r.c; }))
+        : Math.min.apply(null, hist);
+      var dayHi = (cache1d && cache1d.length >= 2)
+        ? Math.max.apply(null, cache1d.map(function(r){ return r.h != null ? r.h : r.c; }))
+        : Math.max.apply(null, hist);
+      var openVal = (cache1d && cache1d.length >= 1) ? (cache1d[0].o || cache1d[0].c) : hist[0];
       var fmtIdx = function(v){ return v.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); };
       // FIX (2026-09-17, user-reported "ihsg... history data belum
       // integrasi"): 5D/1M/6M/YTD/1Y/5Y/All used to be disabled
@@ -196,9 +204,9 @@ function renderDailyBriefPage() {
           + '<div style="flex:0 0 220px;border-left:1px solid var(--border2);padding:16px 20px;display:flex;flex-direction:column">'
             + [
                 ['Previous Close', fmtIdx(ihsgBase)],
-                ['Open (sesi ini)', fmtIdx(openVal)],
-                ['Day Low', fmtIdx(dayLo)],
-                ['Day High', fmtIdx(dayHi)],
+                ['Open (sesi ini)', '<span id="db-ihsg-open">' + fmtIdx(openVal) + '</span>'],
+                ['Day Low', '<span id="db-ihsg-day-low">' + fmtIdx(dayLo) + '</span>'],
+                ['Day High', '<span id="db-ihsg-day-high">' + fmtIdx(dayHi) + '</span>'],
                 ['Volume', '—'],
                 ['Avg. Volume', '—'],
                 ['52 Week Low', '—'],
@@ -557,57 +565,90 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish, tf) {
     return;
   }
 
-  if (tf === '1D') {
-    var hist1d = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
-    var prevClose1d = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist1d[0];
-    // FIX (2026-09-15, user-requested "berikan tambahan jam pada grafik"):
-    // ihsgHistTs (01-data.js, timestamp per titik, index-aligned dengan
-    // ihsgHist) dipakai untuk label jam sungguhan di sumbu-x — sebelumnya
-    // sumbu-x disembunyikan total (x:{display:false}) karena labelnya cuma
-    // index angka (0,1,2,...) yang tidak berarti apa-apa buat user. Fallback
-    // ke label index kalau ihsgHistTs belum sinkron panjangnya (state
-    // transisi sesaat setelah upgrade format localStorage).
-    var hasTs1d = (typeof ihsgHistTs !== 'undefined' && ihsgHistTs.length === hist1d.length);
-    var timeLabels1d = hasTs1d
-      ? ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); })
-      : hist1d.map(function(_, i) { return i; });
-    dbBuildIhsgChartInstance(cv, hist1d, timeLabels1d, hasTs1d, prevClose1d, isBullish, true);
-    return;
-  }
-
-  // Rentang lain (5D/1M/6M/YTD/1Y/5Y/All) — real history dari Yahoo
-  // Finance ^JKSE via rdEnsureIhsgHistory() (03-engine.js), bukan
-  // akumulasi live-polling seperti '1D'. Tampilkan status memuat dulu
-  // (fetch bisa async), lalu render ulang begitu data (atau kegagalan
-  // jujur) datang.
   var wrap = cv.parentElement;
   if (typeof rdEnsureIhsgHistory !== 'function') {
     if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Modul data historis belum termuat.</div>';
     return;
   }
-  if (wrap && !IHSG_HIST_CACHE_HAS(tf)) {
+
+  // Jika tf === '1D' dan kita punya histori live yang sudah terkumpul dengan timestamp (>= 5 titik),
+  // render terlebih dahulu (optimistic preview). Jika belum ada histori dan belum ada cache, tampilkan memuat.
+  var hist1d = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : null;
+  var hasTs1d = (hist1d && typeof ihsgHistTs !== 'undefined' && ihsgHistTs.length === hist1d.length);
+  if (tf === '1D' && hasTs1d && hist1d.length >= 5) {
+    var prevClose1d = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist1d[0];
+    var timeLabels1d = ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); });
+    dbBuildIhsgChartInstance(cv, hist1d, timeLabels1d, true, prevClose1d, isBullish, true);
+  } else if (wrap && !IHSG_HIST_CACHE_HAS(tf)) {
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Memuat histori IHSG (' + tf + ')...</div>';
   }
+
   rdEnsureIhsgHistory(tf, function(rows) {
     if ((window._dbIhsgTf || '1D') !== tf) return; // rentang sudah diganti sementara fetch berjalan
     var cv2 = el('daily-brief-ihsg-chart');
     var wrap2 = cv2 ? cv2.parentElement : wrap;
     if (!rows || !rows.length) {
+      if (tf === '1D' && hist1d && hist1d.length >= 2) {
+        if (wrap2 && !cv2) { wrap2.innerHTML = '<canvas id="daily-brief-ihsg-chart"></canvas>'; cv2 = el('daily-brief-ihsg-chart'); }
+        if (cv2) {
+          var prevCloseFallback = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist1d[0];
+          var timeLabelsFallback = hasTs1d
+            ? ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); })
+            : hist1d.map(function(_, i){ return i; });
+          dbBuildIhsgChartInstance(cv2, hist1d, timeLabelsFallback, hasTs1d, prevCloseFallback, isBullish, true);
+          return;
+        }
+      }
       if (wrap2) wrap2.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Gagal memuat data historis IHSG (' + tf + ') — coba lagi nanti.</div>';
       return;
     }
     if (wrap2 && !cv2) { wrap2.innerHTML = '<canvas id="daily-brief-ihsg-chart"></canvas>'; cv2 = el('daily-brief-ihsg-chart'); }
     if (!cv2) return;
+
+    if (tf === '1D') {
+      try {
+        if (typeof ihsgHist !== 'undefined' && (!ihsgHist.length || ihsgHist.length < rows.length)) {
+          ihsgHist = rows.map(function(r){ return r.c; });
+          if (typeof ihsgHistTs !== 'undefined') {
+            ihsgHistTs = rows.map(function(r){ return r.t; });
+          }
+          if (typeof IHSG_HIST_KEY !== 'undefined') {
+            localStorage.setItem(IHSG_HIST_KEY, JSON.stringify({ v: ihsgHist, t: ihsgHistTs }));
+          }
+        }
+      } catch(e){}
+
+      var fmtIdx = function(v){ return v.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+      var elOpen = el('db-ihsg-open');
+      var elLo = el('db-ihsg-day-low');
+      var elHi = el('db-ihsg-day-high');
+      if (elOpen && rows[0]) elOpen.textContent = fmtIdx(rows[0].o || rows[0].c);
+      if (elLo) {
+        var minVal = Math.min.apply(null, rows.map(function(r){ return r.l != null ? r.l : r.c; }));
+        if (isFinite(minVal)) elLo.textContent = fmtIdx(minVal);
+      }
+      if (elHi) {
+        var maxVal = Math.max.apply(null, rows.map(function(r){ return r.h != null ? r.h : r.c; }));
+        if (isFinite(maxVal)) elHi.textContent = fmtIdx(maxVal);
+      }
+    }
+
     var histR = rows.map(function(r) { return r.c; });
-    var fmtByTf = (tf === '5D')
-      ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' + new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); }
-      : (tf === '1M' || tf === '6M' || tf === 'YTD')
-        ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }); }
-        : function(t) { return new Date(t).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }); };
+    var fmtByTf = (tf === '1D')
+      ? function(t) { return new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); }
+      : (tf === '5D')
+        ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' + new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); }
+        : (tf === '1M' || tf === '6M' || tf === 'YTD')
+          ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }); }
+          : function(t) { return new Date(t).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }); };
     var timeLabelsR = rows.map(function(r) { return fmtByTf(r.t); });
-    var prevCloseR = rows[0].o;
-    var isBullishR = histR[histR.length - 1] >= histR[0];
-    dbBuildIhsgChartInstance(cv2, histR, timeLabelsR, true, prevCloseR, isBullishR, false);
+    var prevCloseR = (tf === '1D' && typeof ihsgBase === 'number' && ihsgBase > 0)
+      ? ihsgBase
+      : (rows.prevClose || rows[0].o);
+    var isBullishR = (tf === '1D' && typeof isBullish === 'boolean')
+      ? isBullish
+      : (histR[histR.length - 1] >= prevCloseR);
+    dbBuildIhsgChartInstance(cv2, histR, timeLabelsR, true, prevCloseR, isBullishR, tf === '1D');
   });
 }
 

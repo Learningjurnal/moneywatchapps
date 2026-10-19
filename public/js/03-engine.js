@@ -1316,6 +1316,7 @@ window.rdEnsureCryptoDaily = rdEnsureCryptoDaily;
 // proxy-chain + real-timestamp/close-array pattern as
 // fhFetchCryptoDailyHistory() above, just targeting the index symbol.
 var IHSG_TF_RANGE = {
+  '1D': { range: '1d', interval: '5m' },
   '5D': { range: '5d', interval: '15m' },
   '1M': { range: '1mo', interval: '1d' },
   '6M': { range: '6mo', interval: '1d' },
@@ -1328,7 +1329,7 @@ var IHSG_HIST_CACHE = {}; // tf -> { rows:[{t,o,h,l,c,v}], fetchedAt }
 var IHSG_HIST_INFLIGHT = {};
 var IHSG_HIST_FAIL = {}; // tf -> timestamp of last failed fetch (backoff, avoid hammering the proxy every re-render)
 var IHSG_HIST_FAIL_BACKOFF_MS = 60000;
-var IHSG_HIST_TTL_MS = { '5D': 5 * 60000, '1M': 60 * 60000, '6M': 60 * 60000, 'YTD': 60 * 60000, '1Y': 60 * 60000, '5Y': 6 * 60 * 60000, 'ALL': 6 * 60 * 60000 };
+var IHSG_HIST_TTL_MS = { '1D': 60000, '5D': 5 * 60000, '1M': 60 * 60000, '6M': 60 * 60000, 'YTD': 60 * 60000, '1Y': 60 * 60000, '5Y': 6 * 60 * 60000, 'ALL': 6 * 60 * 60000 };
 
 function fhFetchIhsgHistory(tf, cb, proxyIdx){
   var cfg = IHSG_TF_RANGE[tf];
@@ -1366,6 +1367,10 @@ function fhFetchIhsgHistory(tf, cb, proxyIdx){
       for(var i=0;i<ts.length;i++){
         if(q.close[i]==null) continue;
         rows.push({ t: ts[i]*1000, o: q.open[i]==null?q.close[i]:q.open[i], h: q.high[i]==null?q.close[i]:q.high[i], l: q.low[i]==null?q.close[i]:q.low[i], c: q.close[i], v: q.volume[i] || 0 });
+      }
+      var meta = result && result.meta;
+      if(meta && (meta.chartPreviousClose || meta.previousClose)){
+        rows.prevClose = meta.chartPreviousClose || meta.previousClose;
       }
       if(rows.length >= 3){ cb(null, rows); return; }
     }
