@@ -1,6 +1,6 @@
 {
-  "version": "20261001",
-  "trained_at": "2026-10-01T09:37:19.182741",
+  "version": "20261101",
+  "trained_at": "2026-11-01T09:55:06.505059",
   "feature_names": [
     "sma_ratio",
     "rsi14",
@@ -18,13 +18,13 @@
   "tp_atr_mult": 2.5,
   "atr_period": 14,
   "max_hold_days": 20,
-  "buy_threshold": 0.4507554769515991,
-  "sell_threshold": 0.3051982820034027,
+  "buy_threshold": 0.4475242793560028,
+  "sell_threshold": 0.31141331791877747,
   "buy_percentile": 80,
   "sell_percentile": 20,
-  "base_rate": 0.3456821665815023,
-  "buy_precision_at_threshold": 0.33205619412515963,
-  "buy_signal_rate_test": 0.20005109862033726,
+  "base_rate": 0.3186362471161241,
+  "buy_precision_at_threshold": 0.31882202304737517,
+  "buy_signal_rate_test": 0.20020507562163548,
   "tickers_used": [
     "BBCA.JK",
     "BBRI.JK",
@@ -47,21 +47,21 @@
     "EXCL.JK",
     "JSMR.JK"
   ],
-  "n_train": 15608,
-  "n_test": 3914,
-  "test_accuracy": 0.6090955544200306,
-  "test_roc_auc": 0.4981008838876859,
+  "n_train": 15558,
+  "n_test": 3901,
+  "test_accuracy": 0.6362471161240707,
+  "test_roc_auc": 0.5114589027371943,
   "feature_importance": {
-    "sma_ratio": 0.11148448288440704,
-    "rsi14": 0.08826865255832672,
-    "mom20": 0.0987568199634552,
-    "vol_ratio": 0.07940338551998138,
-    "volatility20": 0.11661752313375473,
-    "dist_high20": 0.09834381937980652,
-    "atr_pct": 0.09419675916433334,
-    "ema20_slope5": 0.10750660300254822,
-    "dist_ema20": 0.10194168984889984,
-    "atr_ratio_20": 0.10348019748926163
+    "sma_ratio": 0.11666389554738998,
+    "rsi14": 0.0877014771103859,
+    "mom20": 0.0973784402012825,
+    "vol_ratio": 0.08624398708343506,
+    "volatility20": 0.11301974207162857,
+    "dist_high20": 0.1109708920121193,
+    "atr_pct": 0.09445507824420929,
+    "ema20_slope5": 0.09998809546232224,
+    "dist_ema20": 0.08722613751888275,
+    "atr_ratio_20": 0.10635227710008621
   },
   "disclaimer": "Model statistik untuk edukasi/backtesting — bukan rekomendasi investasi."
 }
