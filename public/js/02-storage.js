@@ -799,29 +799,11 @@ function _mergeDatasets(localObj, cloudObj){
     });
   }
 
-  // Jika salah satu sisi secara eksplisit lebih baru (> 10 detik bedanya), prioritaskan dataset yang lebih baru agar transaksi yang dihapus/diubah pengguna tidak ditumpuk ulang secara bertentangan
-  var isLocalMuchNewer = localTime > 0 && (localTime - cloudTime > 10000);
-  var isCloudMuchNewer = cloudTime > 0 && (cloudTime - localTime > 10000);
-
-  if (isLocalMuchNewer && Array.isArray(local.transactions) && local.transactions.length >= 0) {
-    return Object.assign({}, cloud, local, {
-      transactions: local.transactions,
-      dividends: local.dividends || cloud.dividends || [],
-      rdnMutations: local.rdnMutations || cloud.rdnMutations || [],
-      cryptoTx: local.cryptoTx || cloud.cryptoTx || [],
-      rdTx: local.rdTx || cloud.rdTx || []
-    });
-  }
-
-  if (isCloudMuchNewer && Array.isArray(cloud.transactions) && cloud.transactions.length >= 0) {
-    return Object.assign({}, local, cloud, {
-      transactions: cloud.transactions,
-      dividends: cloud.dividends || local.dividends || [],
-      rdnMutations: cloud.rdnMutations || local.rdnMutations || [],
-      cryptoTx: cloud.cryptoTx || local.cryptoTx || [],
-      rdTx: cloud.rdTx || local.rdTx || []
-    });
-  }
+  // FIX AUDIT (CRITICAL, data loss): sebelumnya jika selisih timestamp > 10 detik,
+  // seluruh array `transactions` ditimpa 100% oleh salah satu sisi (`transactions: local.transactions`
+  // atau `transactions: cloud.transactions`), membuang transaksi riil dari sisi lainnya.
+  // Transaksi dan mutasi harus SELALU digabung secara aditif (non-destructive union by id/signature)
+  // di blok pemrosesan di bawah, bukan ditimpa mentah-mentah hanya karena beda waktu simpan.
 
   // FIX AUDIT (CRITICAL, data loss — Rekening Bank/Hutang/Piutang hilang saat
   // pindah device): WEALTH (public/js/20-wealth.js) diinisialisasi sebagai
@@ -867,28 +849,64 @@ function _mergeDatasets(localObj, cloudObj){
   var lTx = Array.isArray(local.transactions) ? local.transactions : [];
   var cTx = Array.isArray(cloud.transactions) ? cloud.transactions : [];
 
+  var idSigs = new Set();
+
   // Index cloud transactions first
   cTx.forEach(function(t){
     if(!t) return;
-    var sig = _makeTxSig(t);
-    var key = (t.id != null) ? ('id_' + t.id) : ('sig_' + sig);
-    txMap.set(key, t);
-    if(sig) txMap.set('sig_' + sig, t);
+    if(t.id != null){
+      txMap.set('id_' + t.id, t);
+      var sig = _makeTxSig(t);
+      if(sig) idSigs.add(sig);
+    } else {
+      var sig = _makeTxSig(t);
+      if(sig && !txMap.has('sig_' + sig)){
+        txMap.set('sig_' + sig, t);
+      }
+    }
   });
 
   // Merge local transactions (keep any local additions or modifications)
+  // FIX AUDIT (CRITICAL, data loss): jika transaksi memiliki ID valid (t.id != null),
+  // identitasnya berpatokan penuh pada ID unik tersebut, JANGAN dibatalkan hanya karena
+  // ada transaksi cloud lain yang kebetulan memiliki signature (tanggal/ticker/lot/harga) yang sama.
+  // Pengecekan signature hanya digunakan sebagai fallback dedup untuk item legacy tanpa ID.
   lTx.forEach(function(t){
     if(!t) return;
-    var sig = _makeTxSig(t);
-    var key = (t.id != null) ? ('id_' + t.id) : ('sig_' + sig);
-    if(!txMap.has(key) && (!sig || !txMap.has('sig_' + sig))){
-      txMap.set(key, t);
-      if(sig) txMap.set('sig_' + sig, t);
+    if(t.id != null){
+      var idKey = 'id_' + t.id;
+      if(!txMap.has(idKey)){
+        var sig = _makeTxSig(t);
+        // Jika ada transaksi legacy tanpa ID di cloud dengan signature sama persis, upgrade dengan ID riil
+        if(sig && txMap.has('sig_' + sig)){
+          var legacyCandidate = txMap.get('sig_' + sig);
+          if(legacyCandidate && legacyCandidate.id == null){
+            legacyCandidate.id = t.id;
+            txMap.set(idKey, legacyCandidate);
+            txMap.delete('sig_' + sig);
+            if(t.sekuritas && !legacyCandidate.sekuritas) legacyCandidate.sekuritas = t.sekuritas;
+            if(t.fee && !legacyCandidate.fee) legacyCandidate.fee = t.fee;
+            if(t.net && !legacyCandidate.net) legacyCandidate.net = t.net;
+            idSigs.add(sig);
+            return;
+          }
+        }
+        txMap.set(idKey, t);
+        if(sig) idSigs.add(sig);
+      } else {
+        // If exists, keep the one with net/gross components or valid id
+        var existing = txMap.get(idKey);
+        if(existing && t.id && !existing.id) existing.id = t.id;
+        if(existing && t.sekuritas && !existing.sekuritas) existing.sekuritas = t.sekuritas;
+        if(existing && t.fee && !existing.fee) existing.fee = t.fee;
+        if(existing && existing.net == null && t.net != null) existing.net = t.net;
+        if(existing && existing.gross == null && t.gross != null) existing.gross = t.gross;
+      }
     } else {
-      // If exists, keep the one with net/gross components or valid id
-      var existing = txMap.get(key) || txMap.get('sig_' + sig);
-      if(existing && t.id && !existing.id) existing.id = t.id;
-      if(existing && t.sekuritas && !existing.sekuritas) existing.sekuritas = t.sekuritas;
+      var sig = _makeTxSig(t);
+      if(sig && !idSigs.has(sig) && !txMap.has('sig_' + sig)){
+        txMap.set('sig_' + sig, t);
+      }
     }
   });
 
@@ -1797,14 +1815,7 @@ function safeCloudBoot(){
   if (!uid || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return Promise.resolve(true);
   }
-  return fireLoadAllData().then(function(ok){
-    // Pastikan data lokal termigrasi ke Supabase jika belum dan bukan dalam status cleared
-    var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
-    if(!window._cloudMigrated && !isDataCleared && transactions && transactions.length > 0){
-      migrateLocalDataToSupabaseCloud();
-    }
-    return ok;
-  });
+  return fireLoadAllData();
 }
 
 function loadData(){

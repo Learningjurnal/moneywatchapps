@@ -5538,6 +5538,18 @@ test('REGRESSION GUARD: cloud wealth (bank/debt/piutang) must not be discarded b
   assert.deepStrictEqual(bankIds, [1, 2], 'Two independently-added bank accounts from two devices must both survive (union by id), neither overwritten');
 });
 
+test('REGRESSION GUARD: _mergeDatasets() preserves distinct same-day orders with matching signatures (no data loss)', () => {
+  const ctx = getStorageMergeContext();
+  const cTx = [{ id: 101, type: 'BUY', ticker: 'BBCA', lot: 10, price: 9500, date: '2026-05-10', sekuritas: 'Stockbit' }];
+  const lTx = [
+    { id: 101, type: 'BUY', ticker: 'BBCA', lot: 10, price: 9500, date: '2026-05-10', sekuritas: 'Stockbit' },
+    { id: 102, type: 'BUY', ticker: 'BBCA', lot: 10, price: 9500, date: '2026-05-10', sekuritas: 'Stockbit' }
+  ];
+  const merged = ctx._mergeDatasets({ transactions: lTx }, { transactions: cTx });
+  const txIds = Array.from(merged.transactions.map(t => t.id)).sort();
+  assert.deepStrictEqual(txIds, [101, 102], 'Both same-day BUY orders with separate IDs must survive merge without signature collision data loss');
+});
+
 // TEST SUITE: SMART MONEY SCREENER CONSOLIDATION (2026-09-17)
 
 // User-requested consolidation (INCIDENT_LOG.md 2026-09-17): 3 previously
@@ -10869,6 +10881,8 @@ test('FEATURE: analyzeInvezgoDisclosures() provides executive resume, historical
   // Checks historical change tracking connects the two dividend filings
   assert(analysis.historicalChanges.length >= 1, 'Must track historical changes across multiple dividend events');
   assert(/dividen/i.test(analysis.historicalChanges[0].category));
+  assert(typeof analysis.insights[0].historicalLink === 'string' && /Kelanjutan/i.test(analysis.insights[0].historicalLink), 'Newest dividend document must link to the prior dividend announcement');
+  assert.strictEqual(analysis.insights[2].historicalLink, null, 'Oldest dividend document in sequence must have no prior historical link');
 
   // Server-side registration checks
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
@@ -10886,6 +10900,11 @@ test('FEATURE: analyzeInvezgoDisclosures() provides executive resume, historical
   // showToast in 03-engine.js checks
   const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
   assert(/isHtml/.test(engineSrc), 'showToast must support isHtml option and markup auto-detection');
+});
+
+test('REGRESSION GUARD: 03-engine.js equity snapshots and rebuild use canonical WIB date (getWibDateString)', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(engineSrc.includes('var today = (typeof getWibDateString === \'function\') ? getWibDateString() : new Date().toISOString().slice(0, 10);'), 'equitySnapshotToday() and validateAndSyncEquityHistory() must use getWibDateString() to prevent UTC-vs-WIB date mismatch');
 });
 
 // ============================================================

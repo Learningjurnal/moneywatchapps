@@ -446,7 +446,7 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild, pr
   allDates.sort();
 
   var firstDateStr = allDates[0];
-  var todayStr = new Date().toISOString().slice(0, 10);
+  var todayStr = (typeof getWibDateString === 'function') ? getWibDateString() : new Date().toISOString().slice(0, 10);
   if (firstDateStr > todayStr) firstDateStr = todayStr;
 
   var sortedTxs = txs.slice().sort(function(a, b) {
@@ -749,7 +749,7 @@ function equitySnapshotToday(){
   if(!isPortfolioDataReady()) return [];
   if(!transactions.length && !(rdnMutations&&rdnMutations.length)) return [];
   
-  var today=new Date().toISOString().slice(0,10);
+  var today = (typeof getWibDateString === 'function') ? getWibDateString() : new Date().toISOString().slice(0, 10);
   var isTrading = (typeof isIdxTradingDay === 'function') ? isIdxTradingDay() : true;
 
   // Cek apakah ada transaksi atau mutasi riil hari ini
@@ -810,7 +810,7 @@ function validateAndSyncEquityHistory(forceRebuild){
   // MW_PRICE_HIST's declaration.
   var rebuilt = rebuildEquityHistoryFromTransactions(hist, true, MW_PRICE_HIST);
   
-  var today = new Date().toISOString().slice(0,10);
+  var today = (typeof getWibDateString === 'function') ? getWibDateString() : new Date().toISOString().slice(0, 10);
   var isTrading = (typeof isIdxTradingDay === 'function') ? isIdxTradingDay() : true;
   var hasTxToday = false;
   if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
