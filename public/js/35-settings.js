@@ -185,8 +185,39 @@
         </div>
       </div>
 
+
+      <!-- TAB NAVIGASI KATEGORI SETTINGS (Pilih Form yang Ingin Diatur) -->
+      <div style="background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px">
+          <i class="ti ti-adjustments-horizontal" style="color:var(--accent)"></i> PILIH PENGATURAN:
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button type="button" class="btn btn-primary btn-sm settings-nav-tab" data-tab="fundamental" onclick="MW_SETTINGS.switchSettingsTab('fundamental')" style="font-weight:700">
+            <i class="ti ti-database-cog"></i> 1. Data Fundamental
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="tax" onclick="MW_SETTINGS.switchSettingsTab('tax')">
+            <i class="ti ti-receipt-tax"></i> 2. Pajak &amp; Sekuritas
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="fire" onclick="MW_SETTINGS.switchSettingsTab('fire')">
+            <i class="ti ti-flame"></i> 3. Sasaran FIRE
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="wealth" onclick="MW_SETTINGS.switchSettingsTab('wealth')">
+            <i class="ti ti-building-bank"></i> 4. Bank &amp; Liabilitas
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="system" onclick="MW_SETTINGS.switchSettingsTab('system')">
+            <i class="ti ti-settings"></i> 5. Tampilan &amp; Backup
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="telemetry" onclick="MW_SETTINGS.switchSettingsTab('telemetry')">
+            <i class="ti ti-activity"></i> 6. Kuota &amp; Telemetri
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="all" onclick="MW_SETTINGS.switchSettingsTab('all')">
+            <i class="ti ti-layout-grid"></i> Buka Semua
+          </button>
+        </div>
+      </div>
+
       <!-- GRID 1: Tax & Broker Fees + Financial Goals & FIRE -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
+      <div class="settings-cat-section" data-cat="tax" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
         
         <!-- 1. Dynamic Tax & Broker Fee Engine -->
         <div class="card" style="padding:22px 24px;border-radius:12px">
@@ -569,7 +600,7 @@
 
 
       <!-- GRID KHUSUS: Form Input & Override Data Fundamental Manual -->
-      <div class="card" style="padding:22px 24px;border:1px solid rgba(59,130,246,0.3);margin-top:16px;background:linear-gradient(180deg, rgba(59,130,246,0.03) 0%, var(--card) 100%)">
+      <div class="settings-cat-section card" data-cat="fundamental" style="padding:22px 24px;border:1px solid rgba(59,130,246,0.3);margin-top:16px;background:linear-gradient(180deg, rgba(59,130,246,0.03) 0%, var(--card) 100%)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px;flex-wrap:wrap;gap:10px">
           <div style="display:flex;align-items:center;gap:10px">
             <div style="width:36px;height:36px;border-radius:8px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px">
@@ -615,6 +646,27 @@
               <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('INDF')">INDF</button>
               <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('MEDC')">MEDC</button>
               <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('AMMN')">AMMN</button>
+            </div>
+          </div>
+
+          <!-- Pilihan Bagian yang Ingin Diisi (Agar UI Tidak Penuh & Rapi) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);padding:8px 12px;border-radius:8px;border:1px solid var(--border2);margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:11.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+              <i class="ti ti-click" style="color:var(--accent)"></i> PILIH BAGIAN YANG INGIN DIISI:
+            </div>
+            <div style="display:flex;gap:6px">
+              <button type="button" id="fund-tab-btn-ratios" class="btn btn-primary btn-xs" onclick="MW_SETTINGS.switchFundamentalViewTab('ratios')" style="font-weight:700">
+                <i class="ti ti-chart-dots"></i> 1. Rasio Terkini
+              </button>
+              <button type="button" id="fund-tab-btn-history" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.switchFundamentalViewTab('history')">
+                <i class="ti ti-table"></i> 2. Riwayat 5 Tahun
+              </button>
+              <button type="button" id="fund-tab-btn-list" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.switchFundamentalViewTab('list')">
+                <i class="ti ti-list"></i> 3. Daftar Tersimpan
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.switchFundamentalViewTab('all')">
+                Buka Semua Bagian
+              </button>
             </div>
           </div>
 
@@ -761,7 +813,7 @@
       </div>
 
       <!-- GRID 4: API Quota Monitor (Invezgo) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
+      <div class="settings-cat-section" data-cat="telemetry" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
 
         <!-- 7. Invezgo Quota -->
         <div class="card" style="padding:18px">
@@ -792,6 +844,8 @@
     loadApiQuotaWidgets();
     renderFundamentalRows([]);
     renderFundamentalOverrideList();
+    var initialTab = (typeof getActiveSettingsTab === "function") ? getActiveSettingsTab() : "fundamental";
+    if (typeof switchSettingsTab === "function") switchSettingsTab(initialTab);
   }
 
   // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status). The Gemini
@@ -887,6 +941,115 @@
     }
   }
 
+
+
+  // ============================================================================
+  // SETTINGS MODULAR UI & COLLAPSIBLE CONTROLLERS
+  // ============================================================================
+  var SETTINGS_TAB_KEY = 'mw_settings_active_tab_v2';
+
+  function getActiveSettingsTab() {
+    try {
+      return localStorage.getItem(SETTINGS_TAB_KEY) || 'fundamental';
+    } catch(e) {
+      return 'fundamental';
+    }
+  }
+
+  function switchSettingsTab(tabName) {
+    try {
+      localStorage.setItem(SETTINGS_TAB_KEY, tabName);
+    } catch(e) {}
+
+    var tabs = document.querySelectorAll('.settings-nav-tab');
+    tabs.forEach(function(t) {
+      if (t.getAttribute('data-tab') === tabName) {
+        t.className = 'btn btn-primary btn-sm settings-nav-tab';
+        t.style.fontWeight = '700';
+      } else {
+        t.className = 'btn btn-ghost btn-sm settings-nav-tab';
+        t.style.fontWeight = 'normal';
+      }
+    });
+
+    var sections = document.querySelectorAll('.settings-cat-section');
+    sections.forEach(function(sec) {
+      var cat = sec.getAttribute('data-cat');
+      if (tabName === 'all' || cat === tabName) {
+        sec.style.display = '';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+  }
+
+  function toggleCardSection(cardId) {
+    var body = document.getElementById(cardId + '-body');
+    var chevron = document.getElementById(cardId + '-chevron');
+    if (!body) return;
+    var isClosed = body.style.display === 'none';
+    body.style.display = isClosed ? '' : 'none';
+    if (chevron) {
+      chevron.className = isClosed ? 'ti ti-chevron-down' : 'ti ti-chevron-right';
+    }
+  }
+
+  function toggleFundamentalSubSection(subId) {
+    var body = document.getElementById(subId);
+    var icon = document.getElementById(subId + '-icon');
+    if (!body) return;
+    var isClosed = body.style.display === 'none';
+    body.style.display = isClosed ? '' : 'none';
+    if (icon) {
+      icon.className = isClosed ? 'ti ti-chevron-down' : 'ti ti-chevron-right';
+    }
+  }
+
+  function switchFundamentalViewTab(viewName) {
+    var tabRatios = document.getElementById('fund-tab-btn-ratios');
+    var tabHistory = document.getElementById('fund-tab-btn-history');
+    var tabList = document.getElementById('fund-tab-btn-list');
+
+    var secRatios = document.getElementById('fund-sec-ratios');
+    var secHistory = document.getElementById('fund-sec-history');
+    var secList = document.getElementById('fund-sec-list');
+
+    var setTabBtn = function(btn, active) {
+      if (!btn) return;
+      btn.className = active ? 'btn btn-primary btn-xs' : 'btn btn-ghost btn-xs';
+      btn.style.fontWeight = active ? '700' : 'normal';
+    };
+
+    if (viewName === 'ratios') {
+      if (secRatios) secRatios.style.display = '';
+      if (secHistory) secHistory.style.display = 'none';
+      if (secList) secList.style.display = 'none';
+      setTabBtn(tabRatios, true);
+      setTabBtn(tabHistory, false);
+      setTabBtn(tabList, false);
+    } else if (viewName === 'history') {
+      if (secRatios) secRatios.style.display = 'none';
+      if (secHistory) secHistory.style.display = '';
+      if (secList) secList.style.display = 'none';
+      setTabBtn(tabRatios, false);
+      setTabBtn(tabHistory, true);
+      setTabBtn(tabList, false);
+    } else if (viewName === 'list') {
+      if (secRatios) secRatios.style.display = 'none';
+      if (secHistory) secHistory.style.display = 'none';
+      if (secList) secList.style.display = '';
+      setTabBtn(tabRatios, false);
+      setTabBtn(tabHistory, false);
+      setTabBtn(tabList, true);
+    } else if (viewName === 'all') {
+      if (secRatios) secRatios.style.display = '';
+      if (secHistory) secHistory.style.display = '';
+      if (secList) secList.style.display = '';
+      setTabBtn(tabRatios, false);
+      setTabBtn(tabHistory, false);
+      setTabBtn(tabList, false);
+    }
+  }
 
   // ============================================================================
 
@@ -1616,7 +1779,11 @@
     renderFundamentalOverrideList: renderFundamentalOverrideList,
     autoCalculateRow: autoCalculateRow,
     autoCalculateRatios: autoCalculateRatios,
-    syncFromLatestHistoryRow: syncFromLatestHistoryRow
+    syncFromLatestHistoryRow: syncFromLatestHistoryRow,
+    switchSettingsTab: switchSettingsTab,
+    toggleCardSection: toggleCardSection,
+    toggleFundamentalSubSection: toggleFundamentalSubSection,
+    switchFundamentalViewTab: switchFundamentalViewTab
   };
 
   // Aliases for Router Compatibility
