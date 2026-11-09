@@ -1,203 +1,148 @@
-# DESIGN.md — MoneyWatch Pro
-
-> Written 2026-09-26 as part of antislop audit-001, finding #7. This document
-> transcribes the visual identity **already present and consistent** across
-> the existing app (`public/css/main.css`, `public/index.html`) — it does not
-> invent new direction. If any line here misreads the intent behind an
-> existing screen, correct it directly; this file should track what the
-> product actually is, not aspire to something else.
-
-## Identity
-
-MoneyWatch Pro is a quantitative analytics terminal for the Indonesian Stock
-Exchange (IDX/BEI): Smart Money / Bandarmology detection, Benjamin Graham-style
-intrinsic valuation, dividend tax (PMK 18) management, and an autonomous
-paper-trading research engine. It presents itself as an **institutional
-trading terminal**, not a consumer investing app — dense, numeric,
-mono-spaced data over friendly illustration.
-
-## Personality
-
-- Precise and data-dense over friendly and spacious. Font sizes run small
-  (base `12.5px`); the product trusts its user to read numbers, not be
-  onboarded gently.
-- Quantitative rigor as the actual brand promise, not just an aesthetic:
-  `CLAUDE.md` rule #1 ("Zero Fabricated Data") is a real, enforced product
-  value, and the UI should never claim more certainty than the underlying
-  data supports (see the disclosure pattern below).
-- Dark-first: the primary theme is dark navy, matching the "trading terminal"
-  identity (real reason — R-21 in the antislop core — not "dark looks tech").
-  A full light theme exists and must stay equally correct (`theme-light`
-  overrides throughout `main.css`).
-
-## Palette
-
-Defined as CSS custom properties in `main.css:2` (dark) and `main.css:70`
-(light, under `.theme-light`):
-
-| Token | Dark | Light | Use |
-|---|---|---|---|
-| `--bg` / `--bg2..5` | `#030712` → `#1E293B` | `#F5F7FA` → `#CBD1D8` | Surface layers |
-| `--text` / `--text2` / `--text3` | white → grey | near-black → grey | Text hierarchy |
-| `--accent` | `#5B8DEF` | `#0000FF` | Bare text/icons on the page |
-| `--accent-blue` | `#38BDF8` | `#0F69FF` | Filled backgrounds, links, telemetry accents |
-| `--green` | `#00C805` | `#00873C` | Gains, "up", accumulation — semantic, not decorative |
-| `--red` | `#FF333A` | `#D0163A` | Losses, "down", distribution — semantic, not decorative |
-| amber (`rgba(245,158,11,*)`) | — | — | Reserved for honest disclosure ("data simulasi", "contoh tampilan") — do not reuse this color for anything that isn't a disclosure |
-
-Core palette stays at 2-3 colors (bg/text neutrals + one blue accent) plus the
-green/red pair, which is a finance-standard semantic convention, not an
-arbitrary "too many colors" violation (R-29 exempts industry-semantic color).
-
-## Typography
-
-Strict 3-Font System (maksimal 3 font famili):
-1. **Headings & Brand Display**: `Plus Jakarta Sans` (`--font-display`). Weights: 500, 600, 700, 800.
-   Digunakan untuk semua judul halaman (`.ptitle`), kartu analisis (`.ctitle`, `.card-title`), dan elemen `h1`–`h6` dengan letter-spacing rapat (`-0.02em` s/d `-0.01em`) untuk estetika institusional modern.
-2. **UI Body & Labels**: `Inter` (`--font-body`). Weights: 400, 500, 600, 700.
-   Dipilih untuk keterbacaan netral pada ukuran teks kecil (10–13px) di antarmuka tabel, form input, modal, dan navigasi aplikasi.
-3. **Tabular Data & Monospace**: `Fira Code` (`--font-mono`). Weights: 400, 500, 600, 700.
-   Dikhususkan untuk angka kuantitatif, kode ticker bursa, nilai harga, persentase, telemetry HUD, dan sumbu grafik (Chart.js ticks) guna menjamin keselarasan angka tabular (tabular-nums).
-
-## Icons
-
-Tabler Icons (`ti ti-*`), picked per-instance for relevance to the label next
-to them (`ti-shield-check` for a security claim, `ti-chart-dots` for
-analytics, `ti-cpu` for an engine reference) rather than generic
-sparkle/magic/robot glyphs.
-
-## Mood & Honesty Pattern
-
-The one recurring UI pattern that IS load-bearing brand identity, not
-decoration: an amber-tinted disclosure box/tag
-(`background: rgba(245,158,11,0.08-0.1)`, `border: 1px solid
-rgba(245,158,11,0.25)`) used whenever data is simulated, unavailable, or
-illustrative rather than real. This pattern exists in the Bandarmology
-widgets, the AI Autonomous Trading opportunity card ("win-rate historis belum
-divalidasi backtest"), and now the auth screen's example telemetry card
-(antislop audit-001 #1). Any new screen that shows a number it cannot back
-with real data should reuse this exact pattern rather than inventing a new
-one.
-
-## Dials
-
-- **ENERGY: 2** (Stripe/Vercel register). The landing/auth screens carry real
-  flourish (gradient hero text, a glowing primary CTA, atmospheric
-  background), but the main app (the ~45 feature pages behind login) is
-  intentionally closer to ENERGY 1 — a dense terminal, not a marketing site.
-  Treat the landing/auth screens and the logged-in app as two different
-  registers on purpose.
-- **RHYTHM: 2**. The logged-in app is consistently composed (consistent card/
-  table/badge vocabulary across pages) with the landing and auth screens
-  deliberately breaking from that vocabulary (their own `.lp-*`/`.auth-*`
-  styles) because they serve a different job (persuasion vs. analysis).
-- **MOTION: 1-2**. Inside the app: hover states and transitions only
-  (`var(--spring)`), no scroll-reveal or choreography — appropriate for a
-  tool people scan quickly and repeatedly. On the landing/auth screens:
-  a few purposeful animations (starfield twinkle, atmospheric glow breathing,
-  button hover lift) — kept deliberately sparse after antislop audit-001 #3
-  removed the extra glow/pulse layers that pushed it toward MOTION 3.
-
-## What NOT to add without a reason
-
-- No new gradient/glow/badge on the logged-in app pages without the same
-  purpose test as any other antislop pass (see `antislop.md` core).
-- No new "trust" claims (compliance, statistics, uptime) anywhere without a
-  real, checkable source — this app's history includes multiple removed
-  instances of exactly this (see `anti-slop/audit-001-2026-09-26.md`).
-- No customer testimonials or logo bars until real ones exist.
+# DESIGN.md — MoneyWatch Pro Design System v7.0
+> **Institutional Precision, Quiet Elegance, and Quantitative Clarity**  
+> *Versi 7.0 — Diperbarui 2026-11-09*
 
 ---
 
-## Aturan Baku Konsistensi Desain Antar-Menu & Layout (Design System Standard)
+## 1. Filosofi Desain (Design Philosophy)
 
-> Ditetapkan agar transisi antar ~45 halaman/menu terasa sebagai **satu terminal terpadu yang konsisten, bersih, dan modern**, bukan kumpulan halaman terpisah yang dibuat dengan selera berbeda.
+MoneyWatch Pro adalah terminal analitik dan manajemen aset kuantitatif untuk Bursa Efek Indonesia (IDX). Aplikasi ini dirancang untuk **analis profesional, investor institusi, dan trader data-driven**.
 
-### 1. Struktur Anatomi Halaman Baku (Page Anatomy)
-Setiap halaman/fitur di bawah `#page-*` harus mengikuti susunan hierarki 3 zona berikut:
-1. **Header Zona Atas (Page Header)**:
-   - Judul Halaman (`h1` atau `h2`, font-weight 700-800, `letter-spacing: -0.02em`, `color: var(--text)`).
-   - Timestamp / Sync Badge di sebelah kanan (misal: "Diperbarui: HH:MM:SS" dengan font mono).
-   - Action Bar terpadu (tombol refresh, export, atau switch mode menggunakan `.sm-btn`).
-2. **Control & Filter Strip (Sub-navigation)**:
-   - Jika halaman memiliki sub-kategori/sub-view (seperti All/Whale/Breakout atau timeframes): letakkan dalam satu bar horizontal terpadu (`.dash-view-toggle-bar` atau wadah segmented chip).
-   - Chip aktif wajib memakai class `.sm-chip.active` atau `.btn.on`, bukan membuat style button baru per halaman.
-3. **Content Grid (Canvas Utama)**:
-   - Menggunakan CSS Grid terstruktur (`grid-template-columns: repeat(auto-fit, minmax(...))` atau 2-kolom seimbang), dengan `gap: 14px-16px`. Hindari layout masonry acak yang membuat tinggi kartu tidak sejajar.
+### Tiga Pilar Utama:
+1. **Quiet Luxury & Restraint (Tidak Banyak Warna)**:
+   - Menghindari visual bising ala aplikasi ritel/crypto (tanpa neon berlebihan, tanpa gradient warna-warni pelangi).
+   - Palet warna terkendali: basis monokromatik gelap berkelas (*Obsidian / Deep Slate*) dengan satu aksen presisi (*Precision Cobalt Blue*) dan warna semantik murni (*Finance Green & Red*).
+2. **Keterbacaan & Kepadatan Tinggi (High Information Density)**:
+   - Data numerik disajikan secara padat, tegas, dan sejajar sempurna (*tabular-nums*).
+   - Pengelompokan kartu terpadu (*Zero Fragmentation*): informasi terkait berada dalam satu kontainer dengan hierarki visual yang jelas.
+3. **Integritas & Kejujuran Data (Data Provenance & Honesty)**:
+   - Desain tidak pernah memalsukan atau mengaburkan kualitas data.
+   - Sinyal simulasi atau data perkiraan selalu diberi tanda visual yang jujur (*Amber Disclosure Tag*).
 
-### 2. Aturan Pengelompokan Kartu & Kepadatan Konten (Zero Card Fragmentation & High Density)
-Mengacu pada prinsip terminal kuantitatif profesional:
-- **SATUKAN KARTU TERPISAH (Zero Card Fragmentation)**:
-  - **DILARANG** memecah metrik, modul, atau kontrol yang berkaitan erat ke dalam banyak kartu kecil terpisah (anti-AI slop).
-  - **WAJIB** menyatukan elemen-elemen tersebut ke dalam **SATU kartu terpadu (`.card`)**.
-  - Untuk memisahkan bagian internal di dalam kartu, gunakan **sub-panel elegan** (`background: var(--bg3); border-radius: 8px; padding: 10px 14px`) atau garis pembatas halus (`height: 1px; background: var(--border-subtle); margin: 12px 0`).
-  - *Contoh baik*: 
-    - 1 kartu "Ringkasan Performa Trading" memuat Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer dalam 2 baris grid internal.
-    - 1 kartu "Transaksi Saham" mengintegrasikan 4 ringkasan metrik (Total Tx, Beli, Jual, Fee) langsung di atas tabel transaksi.
-    - 1 kartu "Hub Arus Kas & Saldo RDN" mengintegrasikan 4 metrik kas, chart arus kas masuk/keluar, dan ringkasan sekuritas aktif.
-    - 1 kartu "Performa & Gain/Loss per Saham" memadukan chart distribusi P&L emiten dan tabel rincian performa per kode.
-  - *Contoh buruk*: Banyak kartu terpisah yang berjejer atau bertumpuk vertikal dengan topik yang sama, menciptakan pemborosan ruang dan margin melompong.
-- **UKURAN KONTEN & HINDARI ZONA KOSONG (Zero Empty Wasteland)**:
-  - Padding kartu standar adalah `14px 16px` (compact: `12px 14px`). Hindari padding raksasa yang menyisakan ruang kosong tak bernilai.
-  - Hindari kartu dengan zona kosong melompong (wasteland). Setiap kartu harus memiliki rasio kepadatan informasi yang proporsional:
-    - Tinggi chart/canvas harus pas (`180px–220px`).
-    - Grid metrik internal harus memanfaatkan ruang secara seimbang (`align-items: stretch`).
-- **ALINEASI & PENCEGAHAN OVERLAP TEKS (Anti-Collision Alignment)**:
-  - **DILARANG KERAS** membiarkan kalimat, judul, badge, atau tombol saling balapan / bertumpuk (`race/overlap`) ketika ukuran viewport berubah.
-  - Kontainer header (`.cheader`, header halaman) **WAJIB** menyertakan `flex-wrap: wrap; gap: 8px 12px; min-width: 0`.
-  - Wadah judul dan teks (`.ctitle`, `.ptitle`, `.psub`) **WAJIB** memiliki `min-width: 0; word-break: break-word` dan `line-height` yang proporsional agar jika teks panjang atau tombol kanan banyak, tombol turun ke bawah dengan rapi tanpa menutupi teks.
-  - Tombol aksi di sisi kanan header kartu harus dibungkus wadah fleksibel (`display: flex; gap: 6px; flex-wrap: wrap; align-items: center`).
+---
 
-### 3. Standar Tabel Data Finansial (Financial Data Tables)
-Data tabel adalah komponen inti terminal ini. Semua tabel lintas menu wajib mematuhi aturan perataan:
-- **Kolom Teks / Identitas (Ticker, Nama Saham, Sektor)**: Rata kiri (`text-align: left`).
-- **Kolom Angka Finansial (Harga, Lot, Volume, Value, P/L, Persen, Rasio)**:
-  - **WAJIB rata kanan (`text-align: right`)**.
-  - **WAJIB menggunakan font angka tabular**: `font-family: var(--font-mono)`, `font-variant-numeric: tabular-nums`, dan `font-feature-settings: "tnum" 1` agar angka tidak bergeser saat data berubah.
-- **Header Tabel (`th`)**:
-  - `font-size: 10px-10.5px`, uppercase, `color: var(--text3)`, `letter-spacing: 0.05em`.
-  - Background `var(--table-header-bg)` dan border bawah `1px solid var(--border)`.
-  - **WAJIB Sticky Header**: `position: sticky; top: 0; z-index: 5;` agar header kolom tetap terbaca saat tabel panjang di-scroll ke bawah.
-- **Row Hover & Interaksi**:
-  - Baris tabel wajib memiliki hover halus (`background: var(--table-row-hover)`).
-- **Mobile Overflow & Freeze Column**:
-  - Setiap tabel WAJIB dibungkus kontainer dengan `overflow-x: auto` (`.tbl-wrap`) agar tabel lebar tidak merusak lebar layar HP/tablet.
-  - Kolom pertama ticker dibekukan dengan class `.tbl-freeze-col` dan bayangan tepi halus di tema gelap maupun terang.
+## 2. Sistem Warna (Color Architecture)
 
-### 4. Standar Penjelasan Fitur & State Pemuatan (Info-Icon & Skeleton)
-- **Info-Icon Micro-copy**:
-  - **DILARANG** menampilkan paragraf penjelasan panjang langsung di layout halaman (menghabiskan ruang analisa terminal).
-  - **WAJIB** menggunakan helper reusable `uiInfoIcon(id, text)` di sebelah label/judul metrik.
-  - Mendukung klik/tap toggle buka-tutup di HP/touchscreen.
-- **Micro-Skeleton Shimmer Loader**:
-  - **DILARANG** menampilkan teks polos seperti "Memuat..." atau emoji jam pasir yang menyebabkan pergeseran layout (*CLS*).
-  - **WAJIB** menggunakan `.skeleton-pulse`, `.skeleton-box`, atau `.skeleton-text` dengan animasi shimmer halus berlatar `var(--bg3)` saat data asinkron sedang dihitung/diambil.
-- **Segmented Control & Period Toggles**:
-  - Pemilihan periode grafik (1W, 1M, 3M, YTD, 1Y, ALL) wajib menggunakan class `.pbtn` yang seragam dengan font mono, border halus, dan state aktif `.on` beraksen cyan/biru (`#38BDF8`).
+Palet warna disederhanakan secara disiplin menjadi **3 lapisan visual**:
+1. **Lapisan Netral Monokromatik (Surfaces & Typography)**
+2. **Lapisan Aksen Primer Tunggal (Brand & Interactive)**
+3. **Lapisan Semantik Pasar (Khusus Data Finansial)**
 
-### 5. Aturan Semantik Warna & Integritas Status
-Patuhi aturan warna finansial yang konsisten di semua halaman:
-- **Hijau (`var(--green)`)**: Khusus indikasi positif (Gain, Akumulasi, Net Inflow, Target Tercapai, Status Optimal).
-- **Merah (`var(--red)`)**: Khusus indikasi negatif (Loss, Distribusi, Net Outflow, Stop Loss Terkena, Risiko Tinggi).
-- **Biru (`var(--accent)` / `var(--accent-blue)`)**: Navigasi aktif, interaksi klik, status telemetri operasional.
-- **Amber (`rgba(245,158,11,*)`)**: **HANYA** untuk pola kejujuran data (data simulasi, estimasi historis yang belum divalidasi, fallback saat API eksternal down). Jangan gunakan warna amber untuk badge dekorasi biasa.
+### A. Palet Tema Gelap (Dark Mode — Obsidian Slate)
+| Token CSS | Nilai Hex / RGBA | Peruntukan & Karakter |
+|---|---|---|
+| `--bg` | `#080A0F` | Kanvas latar belakang utama (deep obsidian, bebas pantulan lelah mata) |
+| `--bg2` | `#0F131D` | Kontainer kartu tingkat 1 (`.card`), panel samping, dan topbar |
+| `--bg3` | `#161B28` | Sub-panel internal, input field, baris header tabel, badge netral |
+| `--bg4` | `#1E2536` | State hover kartu, modal backdrop, tombol sekunder |
+| `--bg5` | `#2A3348` | Garis seleksi aktif, highlight baris tabel |
+| `--text` | `#F8FAFC` | Teks utama, judul, angka penting (Slate 50 — kontras tinggi 14:1) |
+| `--text2` | `#CBD5E1` | Teks sekunder, label formulir, keterangan metrik (Slate 300) |
+| `--text3` | `#64748B` | Teks pendukung, unit ukuran, placeholder, timestamp (Slate 500) |
+| `--border` | `rgba(255, 255, 255, 0.07)` | Garis pemisah halus antar komponen (micro-border) |
+| `--border2` | `rgba(255, 255, 255, 0.12)` | Border kartu interaktif, form input fokus, divider utama |
 
-### 6. Aturan Mutlak Paritas Tema Terang & Gelap (Theme Parity)
-- **DILARANG KERAS** meng-hardcode warna teks atau latar dengan nilai hex solid statis seperti `color: #FFFFFF`, `color: #000000`, atau `background: #0E131F` di dalam template string JS atau inline CSS komponen baru.
-- **WAJIB** menggunakan CSS Custom Properties:
-  - Background: `var(--bg)`, `var(--bg2)`, `var(--bg3)`.
-  - Teks: `var(--text)` (primer), `var(--text2)` (sekunder), `var(--text3)` (muted/label).
-  - Garis batas: `var(--border)`, `var(--border2)`, `var(--border-subtle)`.
-- Setiap kali membuat atau memodifikasi layout menu, **WAJIB diuji di kedua tema** (Dark dan Light mode via `body.theme-light`). Teks putih di atas latar putih atau teks hitam di latar gelap adalah cacat rilis (P0 bug).
+### B. Aksen Primer Tunggal (Precision Cobalt)
+| Token CSS | Nilai Hex | Peruntukan |
+|---|---|---|
+| `--accent` | `#3B82F6` | Aksen tombol aktif, link penting, ikon kontrol navigasi aktif |
+| `--accent-hover` | `#2563EB` | Hover state tombol utama |
+| `--accent-soft` | `rgba(59, 130, 246, 0.12)` | Latar badge aktif, highlight ringkas, chip terpilih |
 
-### 7. Checklist Verifikasi Konsistensi Desain (Consistency Gate)
-Sebelum menganggap perubahan layout atau penambahan menu selesai, verifikasi 8 poin ini:
-1. [ ] Apakah Page Header memiliki judul terstruktur dengan Action/Refresh yang rapi?
-2. [ ] Apakah metrik & modul sekelompok sudah disatukan dalam 1 Card terpadu (Zero Card Fragmentation) dan bebas dari ruang kosong melompong (Zero Wasteland)?
-3. [ ] Apakah judul, teks kalimat, badge, dan kontrol tombol bebas dari tabrakan atau tumpang tindih (no race/overlap) saat lebar layar berubah?
-4. [ ] Apakah seluruh angka finansial rata kanan dan menggunakan font `tabular-nums`?
-5. [ ] Apakah penjelasan fitur menggunakan popover `uiInfoIcon()`, bukan teks deskripsi panjang?
-6. [ ] Apakah warna hijau/merah/amber digunakan strictly sesuai makna semantiknya?
-7. [ ] Apakah tampilan tetap terbaca jelas (kontras tinggi, tidak ada teks tak terlihat) saat tombol tema beralih ke Mode Terang?
-8. [ ] Apakah layout responsif dan tabel dapat di-scroll horizontal tanpa membuat halaman HP meluber ke samping?
+### C. Warna Semantik Finansial (Financial Data Semantics)
+> *Warna di bawah ini HANYA digunakan untuk nilai finansial dan status sinyal, TIDAK BOLEH digunakan sebagai warna dekoratif umum.*
 
+| Token CSS | Dark Mode | Light Mode | Arti Semantik Pasar |
+|---|---|---|---|
+| `--green` | `#10B981` | `#059669` | Untung (Profit), Kenaikan (Gain), Akumulasi Bandar, Inflow Asing |
+| `--red` | `#F43F5E` | `#E11D48` | Rugi (Loss), Penurunan (Drop), Distribusi Bandar, Outflow, Stop Loss |
+| `--amber` | `#F59E0B` | `#D97706` | Peringatan kejujuran data (Simulasi, Estimasi historis, Data Basi) |
+
+---
+
+## 3. Sistem Tipografi (Typography Hierarchy)
+
+Menggunakan kombinasi 2 keluarga font modern berstandar institusional:
+
+### 1. Font Tampilan & Antarmuka: **Inter & Plus Jakarta Sans**
+- **Headings (`h1`–`h4`, `.ptitle`, `.ctitle`)**: `Plus Jakarta Sans` / `Inter`, weight 600–700, tracking rapat (`letter-spacing: -0.025em`). *Hindari weight 800/900 yang terlalu tebal.*
+- **Body & Controls (`body`, buttons, form labels)**: `Inter`, weight 400, 500, 600. Ukuran standar `12.5px`–`13px` dengan `line-height: 1.5`.
+
+### 2. Font Angka & Finansial: **Fira Code / JetBrains Mono**
+- Digunakan untuk seluruh:
+  * Angka harga saham, P&L, persentase, rasio keuangan (PER, PBV, ROE).
+  * Kode ticker emiten (`BBCA`, `BBRI`, `BMRI`).
+  * Koordinat telemetry, jam WIB, dan sumbu grafik.
+- **Wajib Tabular Nums**: `font-variant-numeric: tabular-nums` dan `font-feature-settings: "tnum" 1` agar digit angka rata sempurna tanpa bergetar saat nilai berubah.
+
+---
+
+## 4. Desain Landing Page & Login Page (Modern & Minimalist)
+
+### A. Landing Page (`.lp-*`)
+- **Tone**: *Executive Trading Desk & Horizon Minimalist*.
+- **Latar Belakang**:
+  - Deep dark obsidian (`#080A0F`) dengan satu aksen cahaya ambient monokromatik di bagian bawah (bukan warna ungu/cyan pelangi yang mencolok).
+  - Kisi koordinat (*grid-mesh*) dibuat sangat tipis (`opacity: 0.02`) memberikan kedalaman dimensional tanpa mengganggu teks.
+- **Hero Cockpit**:
+  - Kartu tengah menggunakan *frosted glass* halus (`background: rgba(15, 19, 29, 0.75)`, `border: 1px solid rgba(255, 255, 255, 0.08)`, `backdrop-filter: blur(20px)`).
+  - Judul bersih: Teks putih solid dengan aksen perak lembut, tanpa gradient warna-warni yang mencolok.
+  - Tombol CTA utama: Satu warna solid elegan (`#2563EB` dengan micro-lift), dipadukan tombol sekunder minimalis.
+  - Indikator Telemetry: Huruf monospaced rapi berukuran 10.5px di garis paling atas dan bawah.
+
+### B. Login Page / Auth Modal (`.auth-*`)
+- **Arsitektur Split Panel**:
+  - **Sisi Kiri (Intelijen & Nilai Platform)**: Menggunakan nuansa obsidian slate terpadu, menampilkan fitur inti secara ringkas, kartu telemetri contoh berlabel jujur (`CONTOH ESTIMASI`), dan poin jaminan keamanan.
+  - **Sisi Kanan (Form Input Interaktif)**: Bidang input modern dengan ikon minimalis, label jelas, dan tombol aksi tegas.
+- **Micro-Interactions**:
+  - Transisi modal halus (`opacity` dan `transform: scale(0.98)` ke `scale(1)`).
+  - Form input saat fokus menggunakan border biru presisi halus (`rgba(59, 130, 246, 0.5)`) tanpa pendaran neon berlebihan.
+
+---
+
+## 5. Standar Antarmuka Dalam Aplikasi (In-App Design Rules)
+
+### 1. Desain Modular & Anti-Berantakan (Decluttered & Collapsible)
+- **Halaman Form / Pengaturan**:
+  * Form yang belum ingin diisi **disembunyikan secara default (*hidden/collapsed*)**.
+  * Sediakan **Navigasi Kategori (Tabs)** di bagian atas halaman agar user dapat memilih fokus area yang ingin dikerjakan.
+  * Kartu panjang menyediakan tombol buka-tutup (*accordion*) dengan ikon panah halus.
+- **Zero Card Fragmentation**:
+  * Jangan memecah metrik yang berkaitan menjadi banyak kartu kecil. Satukan dalam 1 kartu terpadu dengan sub-panel berlatar `var(--bg3)`.
+  * Hindari ruang kosong tak bernilai (*zero wasteland*).
+
+### 2. Standar Tabel Finansial
+- Kolom Teks/Emiten: Rata Kiri (`text-align: left`).
+- Kolom Angka Finansial (Harga, Lot, Volume, Value, PnL, Rasio): **Wajib Rata Kanan (`text-align: right`)**.
+- Sticky Header: Header kolom tabel tetap terlihat saat di-scroll (`position: sticky; top: 0`).
+- Responsif: Setiap tabel wajib dibungkus kontainer horizontal scroll (`.tbl-wrap` / `overflow-x: auto`).
+
+### 3. Penjelasan Fitur & State Kosong (Tooltips & Disclosures)
+- Jangan memenuhi layout dengan paragraf instruksi panjang. Gunakan ikon info mikro `uiInfoIcon()` atau tombol expand/collapse bantuan.
+- Status data simulasi atau estimasi **wajib** menggunakan badge amber (`b-amb` / `rgba(245, 158, 11, 0.12)`).
+
+---
+
+## 6. Paritas Tema Terang (Light Theme — Alabaster Slate)
+
+Tema terang dirancang dengan tingkat keanggunan yang sama (*Alabaster White & Slate*):
+- `--bg`: `#F8FAFC` (Slate 50 — sejuk di mata, bukan putih silau murni `#FFFFFF`).
+- `--bg2`: `#FFFFFF` (Surface kartu dan panel).
+- `--bg3`: `#F1F5F9` (Sub-panel dan baris tabel).
+- `--border`: `rgba(0, 0, 0, 0.08)`.
+- `--text`: `#0F172A` (Slate 900).
+- `--text2`: `#334155` (Slate 700).
+- `--text3`: `#64748B` (Slate 500).
+
+Semua komponen wajib diuji di kedua tema agar kontras selalu memenuhi standar WCAG AA (rasio minimal 4.5:1 untuk teks biasa, 7:1 untuk teks utama).
+
+---
+
+## 7. Checklist Verifikasi Rilis UI/UX (Quality Gate)
+
+Sebelum merilis perubahan tampilan apa pun, pastikan:
+- [ ] **Warna Terkendali**: Bebas dari warna ungu/cyan neon berlebih, tombol pelangi, atau pendaran yang melelahkan mata.
+- [ ] **Font Konsisten**: Judul menggunakan Sans Display rapi, angka finansial rata kanan dengan font tabular monospace.
+- [ ] **Kerapian Layout**: Form tidak terbuka sekaligus menumpuk; menggunakan sistem Tab / Collapsible untuk bagian yang belum ingin diisi.
+- [ ] **Responsif & Aman**: Tidak ada teks yang tumpang tindih (*anti-collision*) di layar smartphone atau resolusi desktop rendah.
+- [ ] **Dual-Theme Compatible**: Tampilan terbaca jelas dan indah di Dark Mode maupun Light Mode.

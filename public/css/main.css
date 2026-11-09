@@ -2,45 +2,37 @@
 :root{
   /* YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (DARK MODE - PURE BLACK) */
 
-  --bg:#030712;
-  --bg2:#080C14;
-  --bg3:#0D1322;
-  --bg4:#131B2E;
-  --bg5:#1E293B;
+  --bg:#080A0F;
+  --bg2:#0F131D;
+  --bg3:#161B28;
+  --bg4:#1E2536;
+  --bg5:#2A3348;
 
-  --card-shadow:none;
+  --card-shadow:0 4px 20px rgba(0,0,0,0.45);
 
-  --text:#FFFFFF;
-  --text2:#D2D8DF;
-  --text3:#8F9AA6;
-  --text-main:#FFFFFF;
+  --text:#F8FAFC;
+  --text2:#CBD5E1;
+  --text3:#64748B;
+  --text-main:#F8FAFC;
 
-  --border-subtle:rgba(255,255,255,0.08);
+  --border-subtle:rgba(255,255,255,0.06);
 
-  --border:#1E293B;
-  --border2:#232F4D;
+  --border:rgba(255,255,255,0.08);
+  --border2:rgba(255,255,255,0.12);
 
-  /* Modern 2026 blue identity (replaces the old purple brand color).
-     --accent is for bare text/icons sitting directly on the page
-     background: a brighter blue (#5B8DEF) so it stays readable on
-     near-black, unlike pure #0000FF which nearly disappears there.
-     --brand-primary/--accent2 are for FILLED backgrounds (buttons,
-     active pills, badges) and are always paired with white text. */
-  --brand-primary:#0000FF;
-
-  --brand-soft:rgba(0,0,255,0.20);
-  --accent:#5B8DEF;
-
-  --accent-blue:#38BDF8;
+  --brand-primary:#2563EB;
+  --brand-soft:rgba(37,99,235,0.12);
+  --accent:#3B82F6;
+  --accent-blue:#3B82F6;
   --accent-fg:#FFFFFF;
 
-  --green:#00C805;
-  --red:#FF333A;
-  --amber:#FF9E00;
-  --purple:#8B3DFF;
-  --blue:#0F69FF;
+  --green:#10B981;
+  --red:#F43F5E;
+  --amber:#F59E0B;
+  --purple:#6366F1;
+  --blue:#2563EB;
 
-  --cyan-electric:#00c8ff;
+  --cyan-electric:#38BDF8;
 
   --table-header-bg:#0E1322;
   --table-header-text:#8F9AA6;
@@ -6692,22 +6684,21 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 
 /* ULTRA-AESTHETIC FINTECH SPLIT AUTH MODAL */
 .auth-split-box {
-  width: 880px;
+  width: 860px;
   max-width: 96vw;
-  background: rgba(8, 15, 30, 0.82);
+  background: rgba(11, 15, 25, 0.94);
   backdrop-filter: blur(32px);
   -webkit-backdrop-filter: blur(32px);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
   box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.9),
-    0 0 45px rgba(56, 189, 248, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 24px 70px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   display: grid;
   grid-template-columns: 1fr 1.15fr;
   overflow: hidden;
   position: relative;
-  animation: authModalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: authModalPop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes authModalPop {
@@ -6725,8 +6716,8 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 
 /* Left Brand & Showcase Panel */
 .auth-brand-panel {
-  background: linear-gradient(145deg, rgba(6, 11, 24, 0.95) 0%, rgba(10, 19, 40, 0.95) 100%);
-  border-right: 1px solid rgba(56, 189, 248, 0.15);
+  background: rgba(15, 20, 32, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   padding: 36px 32px;
   display: flex;
   flex-direction: column;
@@ -6742,7 +6733,7 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
   left: -80px;
   width: 260px;
   height: 260px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -6921,12 +6912,12 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 .auth-guest-quick-btn {
   width: 100%;
   padding: 11px 14px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  border-radius: 10px;
-  color: #38BDF8;
-  font-weight: 700;
-  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: #CBD5E1;
+  font-weight: 600;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6936,10 +6927,10 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 }
 
 .auth-guest-quick-btn:hover {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.24) 0%, rgba(99, 102, 241, 0.24) 100%);
-  border-color: #38BDF8;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.35);
+  color: #FFFFFF;
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.22);
 }
 
 .auth-guest-quick-btn .guest-pill {
