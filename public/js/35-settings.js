@@ -620,25 +620,65 @@
 
           <!-- Section 1: Rasio Finansial Utama Terkini -->
           <div style="margin-bottom:20px">
-            <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">
-              <i class="ti ti-chart-dots" style="color:var(--accent)"></i>
-              1. Rasio Finansial Utama Terkini (Untuk Stock Intel, Dossier &amp; Cockpit)
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+              <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px">
+                <i class="ti ti-chart-dots" style="color:var(--accent)"></i>
+                1. Rasio Finansial Utama Terkini (Kalkulasi Otomatis Aktif)
+              </div>
+              <div style="display:flex;gap:6px">
+                <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.syncFromLatestHistoryRow()" title="Salin EPS, BVPS, DPS dari baris riwayat tahun terbaru ke rasio terkini">
+                  <i class="ti ti-arrow-back-up"></i> Tarik dari Riwayat Terakhir
+                </button>
+                <button type="button" class="btn btn-primary btn-xs" onclick="MW_SETTINGS.autoCalculateRatios(true)" title="Hitung ulang PER, PBV, ROE, Div Yield, DPR secara instan">
+                  <i class="ti ti-bolt"></i> ⚡ Hitung Otomatis
+                </button>
+              </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px">
               <div>
+                <label class="cfg-label">Harga Acuan (Rp)</label>
+                <input type="number" id="fund-cfg-price" class="form-input mono" step="1" placeholder="cth: 1350" oninput="MW_SETTINGS.autoCalculateRatios()">
+                <div class="cfg-hint">Harga pasar saham</div>
+              </div>
+              <div>
+                <label class="cfg-label">EPS Terkini (Rp)</label>
+                <input type="number" id="fund-cfg-eps" class="form-input mono" step="any" placeholder="cth: 245" oninput="MW_SETTINGS.autoCalculateRatios('eps')">
+                <div class="cfg-hint">Laba per lembar</div>
+              </div>
+              <div>
                 <label class="cfg-label">PER (P/E Ratio)</label>
-                <input type="number" id="fund-cfg-per" class="form-input mono" step="0.01" placeholder="cth: 7.5">
-                <div class="cfg-hint">x (kali)</div>
+                <input type="number" id="fund-cfg-per" class="form-input mono" step="0.01" placeholder="Otomatis terhitung">
+                <div class="cfg-hint">Harga ÷ EPS</div>
+              </div>
+              <div>
+                <label class="cfg-label">BVPS (Rp)</label>
+                <input type="number" id="fund-cfg-bvps" class="form-input mono" step="any" placeholder="cth: 1850" oninput="MW_SETTINGS.autoCalculateRatios('bvps')">
+                <div class="cfg-hint">Ekuitas/lembar</div>
               </div>
               <div>
                 <label class="cfg-label">PBV (P/B Ratio)</label>
-                <input type="number" id="fund-cfg-pbv" class="form-input mono" step="0.01" placeholder="cth: 0.85">
-                <div class="cfg-hint">x (kali)</div>
+                <input type="number" id="fund-cfg-pbv" class="form-input mono" step="0.01" placeholder="Otomatis terhitung">
+                <div class="cfg-hint">Harga ÷ BVPS</div>
+              </div>
+              <div>
+                <label class="cfg-label">DPS Dividen (Rp)</label>
+                <input type="number" id="fund-cfg-dps" class="form-input mono" step="any" placeholder="cth: 60" oninput="MW_SETTINGS.autoCalculateRatios('dps')">
+                <div class="cfg-hint">Dividen per lembar</div>
+              </div>
+              <div>
+                <label class="cfg-label">DPR (%)</label>
+                <input type="number" id="fund-cfg-dpr" class="form-input mono" step="0.1" placeholder="cth: 30" oninput="MW_SETTINGS.autoCalculateRatios('dpr')">
+                <div class="cfg-hint">Payout Ratio (DPS÷EPS)</div>
+              </div>
+              <div>
+                <label class="cfg-label">Dividend Yield (%)</label>
+                <input type="number" id="fund-cfg-divyield" class="form-input mono" step="0.01" placeholder="Otomatis terhitung">
+                <div class="cfg-hint">(DPS ÷ Harga) × 100%</div>
               </div>
               <div>
                 <label class="cfg-label">ROE (%)</label>
                 <input type="number" id="fund-cfg-roe" class="form-input mono" step="0.01" placeholder="cth: 14.5">
-                <div class="cfg-hint">Return on Equity</div>
+                <div class="cfg-hint">(EPS ÷ BVPS) × 100%</div>
               </div>
               <div>
                 <label class="cfg-label">ROA (%)</label>
@@ -654,26 +694,6 @@
                 <label class="cfg-label">NPM (%)</label>
                 <input type="number" id="fund-cfg-npm" class="form-input mono" step="0.01" placeholder="cth: 18.2">
                 <div class="cfg-hint">Net Profit Margin</div>
-              </div>
-              <div>
-                <label class="cfg-label">Dividend Yield (%)</label>
-                <input type="number" id="fund-cfg-divyield" class="form-input mono" step="0.01" placeholder="cth: 6.5">
-                <div class="cfg-hint">Yield dividen tahunan</div>
-              </div>
-              <div>
-                <label class="cfg-label">EPS Terkini (Rp)</label>
-                <input type="number" id="fund-cfg-eps" class="form-input mono" step="1" placeholder="cth: 245">
-                <div class="cfg-hint">Laba per lembar</div>
-              </div>
-              <div>
-                <label class="cfg-label">BVPS (Rp)</label>
-                <input type="number" id="fund-cfg-bvps" class="form-input mono" step="1" placeholder="cth: 1850">
-                <div class="cfg-hint">Nilai buku/lembar</div>
-              </div>
-              <div>
-                <label class="cfg-label">Harga Acuan (Rp)</label>
-                <input type="number" id="fund-cfg-price" class="form-input mono" step="1" placeholder="cth: 1350">
-                <div class="cfg-hint">Harga pasar saham</div>
               </div>
             </div>
           </div>
@@ -694,14 +714,15 @@
               <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
                 <thead>
                   <tr style="background:var(--bg3);border-bottom:1px solid var(--border2);color:var(--text2)">
-                    <th style="padding:8px 10px;font-weight:600;width:75px">Tahun</th>
-                    <th style="padding:8px 10px;font-weight:600">EPS (Rp)</th>
-                    <th style="padding:8px 10px;font-weight:600">Ekuitas / Lbr (Rp)</th>
-                    <th style="padding:8px 10px;font-weight:600">Jml Saham Beredar</th>
-                    <th style="padding:8px 10px;font-weight:600">DPS (Rp)</th>
-                    <th style="padding:8px 10px;font-weight:600">PER Historis</th>
+                    <th style="padding:8px 10px;font-weight:600;width:70px">Tahun</th>
                     <th style="padding:8px 10px;font-weight:600">Laba Bersih (Rp)</th>
-                    <th style="padding:8px 10px;text-align:center;width:40px">Aksi</th>
+                    <th style="padding:8px 10px;font-weight:600">Jml Saham Beredar</th>
+                    <th style="padding:8px 10px;font-weight:600">EPS (Rp) <span style="font-size:10px;color:var(--accent);font-weight:normal">(Auto)</span></th>
+                    <th style="padding:8px 10px;font-weight:600">Ekuitas / Lbr (Rp)</th>
+                    <th style="padding:8px 10px;font-weight:600">DPS (Rp)</th>
+                    <th style="padding:8px 10px;font-weight:600">DPR (%)</th>
+                    <th style="padding:8px 10px;font-weight:600">PER Hist</th>
+                    <th style="padding:8px 10px;text-align:center;width:35px">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="fund-history-tbody">
@@ -868,6 +889,159 @@
 
 
   // ============================================================================
+
+  // ============================================================================
+  // AUTO-CALCULATION ENGINES FOR FUNDAMENTAL INPUTS
+  // ============================================================================
+  function autoCalculateRow(inputEl, changedField) {
+    if (!inputEl) return;
+    var tr = inputEl.closest('tr');
+    if (!tr) return;
+
+    var niInp = tr.querySelector('.fund-row-netincome');
+    var shInp = tr.querySelector('.fund-row-shares');
+    var epsInp = tr.querySelector('.fund-row-eps');
+    var dpsInp = tr.querySelector('.fund-row-dps');
+    var dprInp = tr.querySelector('.fund-row-dpr');
+
+    var ni = niInp && niInp.value !== '' ? parseFloat(niInp.value) : null;
+    var sh = shInp && shInp.value !== '' ? parseFloat(shInp.value) : null;
+    var eps = epsInp && epsInp.value !== '' ? parseFloat(epsInp.value) : null;
+    var dps = dpsInp && dpsInp.value !== '' ? parseFloat(dpsInp.value) : null;
+    var dpr = dprInp && dprInp.value !== '' ? parseFloat(dprInp.value) : null;
+
+    // 1. Hitung EPS dari Net Income / Shares
+    if ((changedField === 'netIncome' || changedField === 'shares') && ni !== null && sh !== null && sh > 0) {
+      var calcEps = Math.round((ni / sh) * 100) / 100;
+      if (epsInp) epsInp.value = calcEps;
+      eps = calcEps;
+    } else if (changedField === 'eps' && eps !== null && sh !== null && sh > 0 && (ni === null || isNaN(ni))) {
+      // Jika EPS diisi manual dan Shares ada, hitung perkiraan Net Income
+      if (niInp) niInp.value = Math.round(eps * sh);
+    }
+
+    // 2. Hitung DPS atau DPR
+    if (changedField === 'dpr' && dpr !== null && eps !== null && eps > 0) {
+      // Jika DPR diisi (misal 40%), hitung DPS
+      var calcDps = Math.round((eps * (dpr / 100)) * 100) / 100;
+      if (dpsInp) dpsInp.value = calcDps;
+    } else if ((changedField === 'dps' || changedField === 'eps') && dps !== null && eps !== null && eps > 0) {
+      // Jika DPS diisi dan EPS ada, hitung DPR (%)
+      var calcDpr = Math.round(((dps / eps) * 100) * 10) / 10;
+      if (dprInp) dprInp.value = calcDpr;
+    }
+  }
+
+  function autoCalculateRatios(sourceField, showToast) {
+    var priceEl = document.getElementById('fund-cfg-price');
+    var epsEl = document.getElementById('fund-cfg-eps');
+    var perEl = document.getElementById('fund-cfg-per');
+    var bvpsEl = document.getElementById('fund-cfg-bvps');
+    var pbvEl = document.getElementById('fund-cfg-pbv');
+    var dpsEl = document.getElementById('fund-cfg-dps');
+    var dprEl = document.getElementById('fund-cfg-dpr');
+    var dyEl = document.getElementById('fund-cfg-divyield');
+    var roeEl = document.getElementById('fund-cfg-roe');
+
+    var price = priceEl && priceEl.value !== '' ? parseFloat(priceEl.value) : null;
+    var eps = epsEl && epsEl.value !== '' ? parseFloat(epsEl.value) : null;
+    var bvps = bvpsEl && bvpsEl.value !== '' ? parseFloat(bvpsEl.value) : null;
+    var dps = dpsEl && dpsEl.value !== '' ? parseFloat(dpsEl.value) : null;
+    var dpr = dprEl && dprEl.value !== '' ? parseFloat(dprEl.value) : null;
+
+    var updatedCount = 0;
+
+    // 1. Hubungan DPS vs DPR:
+    if (sourceField === 'dpr' && dpr !== null && eps !== null && eps > 0) {
+      var calcDps = Math.round((eps * (dpr / 100)) * 100) / 100;
+      if (dpsEl) { dpsEl.value = calcDps; dps = calcDps; updatedCount++; }
+    } else if (dps !== null && eps !== null && eps > 0 && (sourceField === 'dps' || sourceField === 'eps' || !dprEl.value)) {
+      var calcDpr = Math.round(((dps / eps) * 100) * 10) / 10;
+      if (dprEl) { dprEl.value = calcDpr; updatedCount++; }
+    }
+
+    // 2. Hubungan Harga & EPS -> PER:
+    if (price !== null && price > 0 && eps !== null && eps > 0) {
+      var calcPer = Math.round((price / eps) * 100) / 100;
+      if (perEl) { perEl.value = calcPer; updatedCount++; }
+    }
+
+    // 3. Hubungan Harga & BVPS -> PBV:
+    if (price !== null && price > 0 && bvps !== null && bvps > 0) {
+      var calcPbv = Math.round((price / bvps) * 100) / 100;
+      if (pbvEl) { pbvEl.value = calcPbv; updatedCount++; }
+    }
+
+    // 4. Hubungan Harga & DPS -> Dividend Yield:
+    if (price !== null && price > 0 && dps !== null && dps >= 0) {
+      var calcDy = Math.round(((dps / price) * 100) * 100) / 100;
+      if (dyEl) { dyEl.value = calcDy; updatedCount++; }
+    }
+
+    // 5. Hubungan EPS & BVPS -> ROE (%):
+    if (eps !== null && bvps !== null && bvps > 0 && (!roeEl || !roeEl.value || sourceField === true)) {
+      var calcRoe = Math.round(((eps / bvps) * 100) * 100) / 100;
+      if (roeEl) { roeEl.value = calcRoe; updatedCount++; }
+    }
+
+    if (showToast && typeof showSaveStatus === 'function') {
+      showSaveStatus('⚡ Kalkulasi otomatis selesai (' + updatedCount + ' rasio diperbarui)', 'var(--green)');
+    }
+  }
+
+  function syncFromLatestHistoryRow() {
+    var tbody = document.getElementById('fund-history-tbody');
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll('tr');
+    if (rows.length === 0) {
+      alert('Tabel riwayat tahunan masih kosong. Isi baris tahun terlebih dahulu.');
+      return;
+    }
+
+    // Cari baris dengan tahun tertinggi yang terisi
+    var latestRow = null;
+    var maxYear = -1;
+
+    rows.forEach(function(tr) {
+      var yInp = tr.querySelector('.fund-row-year');
+      if (yInp && yInp.value) {
+        var y = parseInt(yInp.value, 10);
+        if (y > maxYear) {
+          maxYear = y;
+          latestRow = tr;
+        }
+      }
+    });
+
+    if (!latestRow) {
+      alert('Tidak ditemukan baris tahun valid.');
+      return;
+    }
+
+    var epsInp = latestRow.querySelector('.fund-row-eps');
+    var eqInp = latestRow.querySelector('.fund-row-equity');
+    var dpsInp = latestRow.querySelector('.fund-row-dps');
+    var dprInp = latestRow.querySelector('.fund-row-dpr');
+
+    var epsVal = epsInp && epsInp.value !== '' ? epsInp.value : '';
+    var eqVal = eqInp && eqInp.value !== '' ? eqInp.value : '';
+    var dpsVal = dpsInp && dpsInp.value !== '' ? dpsInp.value : '';
+    var dprVal = dprInp && dprInp.value !== '' ? dprInp.value : '';
+
+    var targetEps = document.getElementById('fund-cfg-eps');
+    var targetBvps = document.getElementById('fund-cfg-bvps');
+    var targetDps = document.getElementById('fund-cfg-dps');
+    var targetDpr = document.getElementById('fund-cfg-dpr');
+
+    if (epsVal && targetEps) targetEps.value = epsVal;
+    if (eqVal && targetBvps) targetBvps.value = eqVal;
+    if (dpsVal && targetDps) targetDps.value = dpsVal;
+    if (dprVal && targetDpr) targetDpr.value = dprVal;
+
+    // Hitung otomatis rasio terkini (PER, PBV, Yield, ROE) dari data yang baru disalin
+    autoCalculateRatios(true, true);
+  }
+
   // MANUAL FUNDAMENTAL DATA MANAGER
   // ============================================================================
   function renderFundamentalRows(rows) {
@@ -887,25 +1061,28 @@
       html += `
         <tr style="border-bottom:1px solid var(--border2)">
           <td style="padding:6px 8px">
-            <input type="number" class="form-input mono fund-row-year" value="${r.year || ''}" style="width:70px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
+            <input type="number" class="form-input mono fund-row-year" value="${r.year || ''}" style="width:65px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-eps" value="${r.eps !== undefined ? r.eps : ''}" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 150">
+            <input type="number" step="any" class="form-input mono fund-row-netincome" value="${r.netIncome !== undefined ? r.netIncome : ''}" style="width:100%;min-width:105px;padding:4px 6px;font-size:11.5px" placeholder="Laba Bersih" oninput="MW_SETTINGS.autoCalculateRow(this, 'netIncome')">
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-equity" value="${r.equity !== undefined ? r.equity : ''}" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1200">
+            <input type="number" step="any" class="form-input mono fund-row-shares" value="${r.shares !== undefined ? r.shares : ''}" style="width:100%;min-width:100px;padding:4px 6px;font-size:11.5px" placeholder="Jml Saham" oninput="MW_SETTINGS.autoCalculateRow(this, 'shares')">
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-shares" value="${r.shares !== undefined ? r.shares : ''}" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10000000000">
+            <input type="number" step="any" class="form-input mono fund-row-eps" value="${r.eps !== undefined ? r.eps : ''}" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px;font-weight:600;color:var(--accent)" placeholder="EPS" oninput="MW_SETTINGS.autoCalculateRow(this, 'eps')">
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-dps" value="${r.dps !== undefined ? r.dps : ''}" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 50">
+            <input type="number" step="any" class="form-input mono fund-row-equity" value="${r.equity !== undefined ? r.equity : ''}" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="Ekuitas/lbr">
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-per" value="${r.per !== undefined ? r.per : ''}" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10.5">
+            <input type="number" step="any" class="form-input mono fund-row-dps" value="${r.dps !== undefined ? r.dps : ''}" style="width:100%;min-width:70px;padding:4px 6px;font-size:11.5px" placeholder="DPS" oninput="MW_SETTINGS.autoCalculateRow(this, 'dps')">
           </td>
           <td style="padding:6px 8px">
-            <input type="number" step="any" class="form-input mono fund-row-netincome" value="${r.netIncome !== undefined ? r.netIncome : ''}" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1500000000000">
+            <input type="number" step="0.1" class="form-input mono fund-row-dpr" value="${(r.dps && r.eps) ? ((r.dps / r.eps) * 100).toFixed(1) : ''}" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="DPR %" oninput="MW_SETTINGS.autoCalculateRow(this, 'dpr')">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-per" value="${r.per !== undefined ? r.per : ''}" style="width:100%;min-width:60px;padding:4px 6px;font-size:11.5px" placeholder="PER">
           </td>
           <td style="padding:6px 8px;text-align:center">
             <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.removeFundamentalHistoryRow(this)" title="Hapus Baris">
@@ -934,25 +1111,28 @@
     tr.style.borderBottom = '1px solid var(--border2)';
     tr.innerHTML = `
       <td style="padding:6px 8px">
-        <input type="number" class="form-input mono fund-row-year" value="${lastYear}" style="width:70px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
+        <input type="number" class="form-input mono fund-row-year" value="${lastYear}" style="width:65px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-eps" value="" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 150">
+        <input type="number" step="any" class="form-input mono fund-row-netincome" value="" style="width:100%;min-width:105px;padding:4px 6px;font-size:11.5px" placeholder="Laba Bersih" oninput="MW_SETTINGS.autoCalculateRow(this, 'netIncome')">
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-equity" value="" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1200">
+        <input type="number" step="any" class="form-input mono fund-row-shares" value="" style="width:100%;min-width:100px;padding:4px 6px;font-size:11.5px" placeholder="Jml Saham" oninput="MW_SETTINGS.autoCalculateRow(this, 'shares')">
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-shares" value="" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10000000000">
+        <input type="number" step="any" class="form-input mono fund-row-eps" value="" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px;font-weight:600;color:var(--accent)" placeholder="EPS" oninput="MW_SETTINGS.autoCalculateRow(this, 'eps')">
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-dps" value="" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 50">
+        <input type="number" step="any" class="form-input mono fund-row-equity" value="" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="Ekuitas/lbr">
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-per" value="" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10.5">
+        <input type="number" step="any" class="form-input mono fund-row-dps" value="" style="width:100%;min-width:70px;padding:4px 6px;font-size:11.5px" placeholder="DPS" oninput="MW_SETTINGS.autoCalculateRow(this, 'dps')">
       </td>
       <td style="padding:6px 8px">
-        <input type="number" step="any" class="form-input mono fund-row-netincome" value="" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1500000000000">
+        <input type="number" step="0.1" class="form-input mono fund-row-dpr" value="" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="DPR %" oninput="MW_SETTINGS.autoCalculateRow(this, 'dpr')">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-per" value="" style="width:100%;min-width:60px;padding:4px 6px;font-size:11.5px" placeholder="PER">
       </td>
       <td style="padding:6px 8px;text-align:center">
         <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.removeFundamentalHistoryRow(this)" title="Hapus Baris">
@@ -1433,7 +1613,10 @@
     quickSelectFundamentalTicker: quickSelectFundamentalTicker,
     handleSaveFundamental: handleSaveFundamental,
     handleDeleteFundamental: handleDeleteFundamental,
-    renderFundamentalOverrideList: renderFundamentalOverrideList
+    renderFundamentalOverrideList: renderFundamentalOverrideList,
+    autoCalculateRow: autoCalculateRow,
+    autoCalculateRatios: autoCalculateRatios,
+    syncFromLatestHistoryRow: syncFromLatestHistoryRow
   };
 
   // Aliases for Router Compatibility
