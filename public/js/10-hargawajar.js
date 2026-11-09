@@ -1397,6 +1397,10 @@ var hwHistChartEq = null;
 
 function hw_defaultRows(ticker) {
   var tk = (ticker || hwData.ticker || '').toUpperCase();
+  var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(tk) : null;
+  if (override && Array.isArray(override.rows) && override.rows.length) {
+    return JSON.parse(JSON.stringify(override.rows));
+  }
   if (STOCK_FINANCIAL_DATABASE[tk] && STOCK_FINANCIAL_DATABASE[tk].rows) {
     return JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
   }
@@ -1466,8 +1470,12 @@ function hw_loadStockData(tk) {
 
   // Resolve price from SSOT first (ensures 100% uniformity across all modules)
   var marketPrice = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0;
+  var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(tk) : null;
   
-  if (STOCK_FINANCIAL_DATABASE[tk]) {
+  if (override && Array.isArray(override.rows) && override.rows.length) {
+    hwData.currentPrice = marketPrice > 0 ? marketPrice : (override.currentPrice || (override.ratios && override.ratios.price) || 0);
+    hwData.rows = JSON.parse(JSON.stringify(override.rows));
+  } else if (STOCK_FINANCIAL_DATABASE[tk]) {
     hwData.currentPrice = marketPrice > 0 ? marketPrice : STOCK_FINANCIAL_DATABASE[tk].price;
     hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
   } else if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
@@ -1815,7 +1823,8 @@ function hw_ensureTickerSynced() {
   if (tk === HW_LAST_CONFIRMED_TICKER) return 'same';
 
   hwData.ticker = tk;
-  if (STOCK_FINANCIAL_DATABASE[tk]) {
+  var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(tk) : null;
+  if ((override && Array.isArray(override.rows) && override.rows.length) || STOCK_FINANCIAL_DATABASE[tk]) {
     hw_loadStockData(tk);
     hw_renderTable();
     HW_LAST_CONFIRMED_TICKER = tk;
@@ -1855,7 +1864,8 @@ function hw_recalc() {
 
   // Fallback for currentPrice if 0 or empty
   if (!hwData.currentPrice || hwData.currentPrice <= 0) {
-    var dbEntry = STOCK_FINANCIAL_DATABASE[hwData.ticker];
+    var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(hwData.ticker) : null;
+    var dbEntry = (override && (override.currentPrice || (override.ratios && override.ratios.price))) ? override : STOCK_FINANCIAL_DATABASE[hwData.ticker];
     if (dbEntry && dbEntry.price) {
       hwData.currentPrice = dbEntry.price;
       var cp = document.getElementById('hw-current-price');
@@ -1869,6 +1879,14 @@ function hw_recalc() {
   });
 
   if (rows.length < 2) {
+    var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(hwData.ticker) : null;
+    if (override && Array.isArray(override.rows) && override.rows.length) {
+      hwData.rows = JSON.parse(JSON.stringify(override.rows));
+      hw_renderTable();
+      rows = hwData.rows.filter(function(r) {
+        return parseFloat(r.eps) > 0 && parseFloat(r.equity) > 0 && parseFloat(r.shares) > 0;
+      });
+    }
     // Load default stock data if rows were empty. FIX: this used to
     // reassign `rows = hwData.rows` (the raw, UNfiltered reloaded rows)
     // instead of re-running the same eps/equity/shares > 0 filter — so a

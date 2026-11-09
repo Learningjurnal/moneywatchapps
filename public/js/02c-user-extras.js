@@ -7,7 +7,8 @@ var MW_EXTRAS_KEYS = {
   hwHistory: 'hw_history',
   dossierWeights: 'mw_dossier_weights_v1',
   settings: 'mw_settings_v6',
-  netWorthHistory: 'mw_wealth_networth_hist_v1'
+  netWorthHistory: 'mw_wealth_networth_hist_v1',
+  fundamentalOverrides: 'mw_fundamental_overrides_v1'
 };
 var MW_EXTRAS_TS_KEY = 'mw_user_extras_ts_v1';
 var MW_EXTRAS_EPOCH = '1970-01-01T00:00:00.000Z';
@@ -105,3 +106,71 @@ function mwExtrasApply(cloudExtras) {
 window.mwExtrasTouch = mwExtrasTouch;
 window.mwExtrasCollect = mwExtrasCollect;
 window.mwExtrasApply = mwExtrasApply;
+
+// ============================================================================
+// FUNDAMENTAL DATA OVERRIDE SSOT (Untuk emiten yang data API-nya belum lengkap)
+// ============================================================================
+var MW_FUNDAMENTAL_OVERRIDES_KEY = 'mw_fundamental_overrides_v1';
+
+function getAllFundamentalOverrides() {
+  try {
+    var raw = localStorage.getItem(MW_FUNDAMENTAL_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function getFundamentalOverride(ticker) {
+  if (!ticker) return null;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  var all = getAllFundamentalOverrides();
+  return all[tk] || null;
+}
+
+function saveFundamentalOverride(ticker, data) {
+  if (!ticker || !data) return false;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  try {
+    var all = getAllFundamentalOverrides();
+    var existing = all[tk] || {};
+    data.ticker = tk;
+    data.updatedAt = new Date().toISOString();
+    data.source = 'MANUAL';
+    all[tk] = Object.assign({}, existing, data);
+    localStorage.setItem(MW_FUNDAMENTAL_OVERRIDES_KEY, JSON.stringify(all));
+    if (typeof mwExtrasTouch === 'function') {
+      mwExtrasTouch('fundamentalOverrides');
+    }
+    return true;
+  } catch (e) {
+    console.error('saveFundamentalOverride error:', e);
+    return false;
+  }
+}
+
+function deleteFundamentalOverride(ticker) {
+  if (!ticker) return false;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  try {
+    var all = getAllFundamentalOverrides();
+    if (all[tk]) {
+      delete all[tk];
+      localStorage.setItem(MW_FUNDAMENTAL_OVERRIDES_KEY, JSON.stringify(all));
+      if (typeof mwExtrasTouch === 'function') {
+        mwExtrasTouch('fundamentalOverrides');
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('deleteFundamentalOverride error:', e);
+    return false;
+  }
+}
+
+window.getAllFundamentalOverrides = getAllFundamentalOverrides;
+window.getFundamentalOverride = getFundamentalOverride;
+window.saveFundamentalOverride = saveFundamentalOverride;
+window.deleteFundamentalOverride = deleteFundamentalOverride;
+

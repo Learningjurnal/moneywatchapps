@@ -11938,6 +11938,108 @@ test('REGRESSION GUARD: computeWilderRSI() handles flatline / halted stocks with
   assert.strictEqual(rsi, 50, 'A completely flat / halted stock must have RSI 50 (neutral), not 100');
 });
 
+test('FUNDAMENTAL OVERRIDE: Storage, Price Engine & Dossier integration for manual fundamental data', () => {
+  const extrasSrc = fs.readFileSync(path.join(__dirname, 'public/js/02c-user-extras.js'), 'utf8');
+  const mockStorage = {};
+  const sandbox = {
+    localStorage: {
+      getItem: (k) => mockStorage[k] || null,
+      setItem: (k, v) => { mockStorage[k] = String(v); },
+      removeItem: (k) => { delete mockStorage[k]; }
+    },
+    window: {},
+    console: console,
+    Date: Date
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(extrasSrc, sandbox);
+
+  // 1. saveFundamentalOverride & getFundamentalOverride
+  const sampleData = {
+    currentPrice: 1250,
+    ratios: {
+      per: 6.8,
+      pbv: 0.72,
+      roe: 12.5,
+      roa: 1.8,
+      der: 5.2,
+      npm: 14.1,
+      dividendYield: 5.5,
+      eps: 184,
+      bvps: 1736
+    },
+    rows: [
+      { year: 2020, eps: 120, equity: 1300, shares: 10500000000, dps: 30, per: 8.5, netIncome: 1260000000000 },
+      { year: 2021, eps: 140, equity: 1420, shares: 10500000000, dps: 35, per: 7.9, netIncome: 1470000000000 },
+      { year: 2022, eps: 165, equity: 1560, shares: 10500000000, dps: 42, per: 7.2, netIncome: 1730000000000 },
+      { year: 2023, eps: 175, equity: 1650, shares: 10500000000, dps: 45, per: 7.0, netIncome: 1830000000000 },
+      { year: 2024, eps: 184, equity: 1736, shares: 10500000000, dps: 50, per: 6.8, netIncome: 1930000000000 }
+    ]
+  };
+
+  const ok = sandbox.saveFundamentalOverride('bbtn.jk', sampleData);
+  assert.strictEqual(ok, true, 'saveFundamentalOverride should succeed');
+
+  const retrieved = sandbox.getFundamentalOverride('BBTN');
+  assert(retrieved, 'Should retrieve BBTN override');
+  assert.strictEqual(retrieved.ticker, 'BBTN');
+  assert.strictEqual(retrieved.source, 'MANUAL');
+  assert.strictEqual(retrieved.ratios.per, 6.8);
+  assert.strictEqual(retrieved.rows.length, 5);
+
+  // 2. Integration with Dossier Fundamental Score
+  const dossierSrc = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  const dSandbox = {
+    getFundamentalOverride: sandbox.getFundamentalOverride,
+    console: console,
+    Number: Number,
+    String: String,
+    Boolean: Boolean,
+    isNaN: isNaN
+  };
+  vm.createContext(dSandbox);
+  vm.runInContext(dossierSrc, dSandbox);
+
+  const harvestedEmpty = {
+    ticker: 'BBTN',
+    quote: { ticker: 'BBTN' },
+    fundamentals: null
+  };
+  const scoreResult = dSandbox.dossierComputeFundamentalScore(harvestedEmpty);
+  assert.strictEqual(scoreResult.available, true, 'Score should be available when manual override exists');
+  assert.strictEqual(scoreResult.roe, 12.5);
+  assert.strictEqual(scoreResult.der, 5.2);
+  assert.strictEqual(scoreResult.npm, 14.1);
+  assert.strictEqual(scoreResult.divYield, 5.5);
+  assert(typeof scoreResult.score === 'number' && scoreResult.score > 0, 'Fundamental score must be computed');
+
+  // 3. Integration with Harga Wajar hw_loadStockData
+  const hwSrc = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+  const hwSandbox = {
+    getFundamentalOverride: sandbox.getFundamentalOverride,
+    getGlobalMarketPrice: () => 1250,
+    STOCK_FINANCIAL_DATABASE: {},
+    hwData: { ticker: '', rows: [], currentPrice: 0 },
+    window: {},
+    console: console,
+    Date: Date,
+    JSON: JSON,
+    Array: Array
+  };
+  vm.createContext(hwSandbox);
+  vm.runInContext(hwSrc, hwSandbox);
+
+  hwSandbox.hw_loadStockData('BBTN');
+  assert.strictEqual(hwSandbox.hwData.ticker, 'BBTN');
+  assert.strictEqual(hwSandbox.hwData.rows.length, 5, 'Must load 5 rows from override');
+  assert.strictEqual(hwSandbox.hwData.rows[4].eps, 184);
+
+  // 4. deleteFundamentalOverride
+  const delOk = sandbox.deleteFundamentalOverride('BBTN');
+  assert.strictEqual(delOk, true, 'deleteFundamentalOverride should return true');
+  assert.strictEqual(sandbox.getFundamentalOverride('BBTN'), null, 'BBTN should be null after delete');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

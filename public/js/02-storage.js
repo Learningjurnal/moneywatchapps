@@ -39,6 +39,17 @@ function _authHeaders(extra) {
 
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 
+// FIX AUDIT (DATA-02b, id collision): id baru dulu murni counter lokal per
+// device (`max+1`), jadi dua device offline bisa membuat id yang SAMA untuk
+// record yang berbeda, lalu merge membuang salah satunya. Floor ke
+// Date.now() membuat id baru device-unique. Nilainya tetap integer positif
+// dan stabil per record, jadi sorting/editing/deleting (yang mencari
+// berdasarkan id) tidak terpengaruh. Dipakai di semua titik alokasi cursor
+// (payload save, _applyCloudPayload, loadData, restoreFromBackup).
+function _nextIdFloor(current, arr){
+  return Math.max(current || 1, _maxIdPlus1(arr), Date.now());
+}
+
 // Multi-tenant storage key resolver
 function getUserStorageKey(prefix, overrideUid) {
   var targetUid = overrideUid;
@@ -824,15 +835,23 @@ function _mergeDatasets(localObj, cloudObj){
   var mergedWealthTop = _mergeWealthData(local.wealth, cloud.wealth, localTime, cloudTime);
 
   // Jika perangkat baru / device lain (local transaksi kosong) dan cloud memiliki transaksi, adopsi data cloud secara penuh
+  // FIX AUDIT (DATA-01, data loss): cabang ini dulu `return` lebih awal dengan
+  // `dividends: cloud.dividends || []` dst, membuang SETOR/TARIK, dividen,
+  // crypto/RD/ETF yang hanya ada di sisi LOKAL — padahal device baru bisa
+  // membuat mutasi RDN/dividen manual sebelum sinkron pertama. Array
+  // transaksi memang murni cloud (local kosong by definition), tetapi setiap
+  // koleksi lain di-union per-id/signature lewat helper yang sama dengan
+  // merge umum di bawah, jadi tidak ada entri lokal yang hilang.
   if ((!local.transactions || local.transactions.length === 0) && Array.isArray(cloud.transactions) && cloud.transactions.length > 0) {
+    var preferLocalNewDevice = localTime >= cloudTime;
     return Object.assign({}, local, cloud, {
       transactions: cloud.transactions,
-      dividends: cloud.dividends || [],
-      rdnMutations: cloud.rdnMutations || [],
-      cryptoTx: cloud.cryptoTx || [],
-      rdTx: cloud.rdTx || [],
-      etfTx: cloud.etfTx || [],
-      divInvestData: cloud.divInvestData || [],
+      dividends: _mergeByIdOrSig(cloud.dividends, local.dividends, _divSig, preferLocalNewDevice),
+      rdnMutations: _mergeByIdOrSig(cloud.rdnMutations, local.rdnMutations, _rdnSig, preferLocalNewDevice),
+      cryptoTx: _mergeByIdOrSig(cloud.cryptoTx, local.cryptoTx, _cryptoSig, preferLocalNewDevice),
+      rdTx: _mergeByIdOrSig(cloud.rdTx, local.rdTx, _rdSig, preferLocalNewDevice),
+      etfTx: _mergeByIdOrSig(cloud.etfTx, local.etfTx, _etfSig, preferLocalNewDevice),
+      divInvestData: _mergeByIdOrSig(cloud.divInvestData, local.divInvestData, _divInvestSig, preferLocalNewDevice),
       rdnBalance: (typeof cloud.rdnBalance === 'number') ? cloud.rdnBalance : (local.rdnBalance || 0),
       wealth: mergedWealthTop,
       theses: (cloud.theses && cloud.theses.length) ? cloud.theses : (local.theses || []),
@@ -895,12 +914,34 @@ function _mergeDatasets(localObj, cloudObj){
         if(sig) idSigs.add(sig);
       } else {
         // If exists, keep the one with net/gross components or valid id
+        // FIX AUDIT (DATA-02a, data loss — user edit reverted): id yang sama
+        // di kedua sisi dulu SELALU mempertahankan isi cloud apa adanya,
+        // sehingga edit lokal (lot/harga/date/type) hilang saat merge dan
+        // ditimpa balik ke nilai cloud lama. Sekarang: signature sama =
+        // record logis yang sama (dedupe tetap, isi cloud dipertahankan);
+        // signature BEDA = edit nyata, dan sisi dengan dataset yang lebih
+        // baru menang (localTime >= cloudTime -> lokal). Field pelengkap
+        // (sekuritas/fee/net/gross) tetap diisi dari sisi yang kalah supaya
+        // tidak ada metadata yang hilang.
         var existing = txMap.get(idKey);
-        if(existing && t.id && !existing.id) existing.id = t.id;
-        if(existing && t.sekuritas && !existing.sekuritas) existing.sekuritas = t.sekuritas;
-        if(existing && t.fee && !existing.fee) existing.fee = t.fee;
-        if(existing && existing.net == null && t.net != null) existing.net = t.net;
-        if(existing && existing.gross == null && t.gross != null) existing.gross = t.gross;
+        if(existing){
+          var localSig = _makeTxSig(t);
+          var cloudSig = _makeTxSig(existing);
+          if(localSig !== cloudSig && localTime >= cloudTime){
+            if(t.sekuritas && !existing.sekuritas) t.sekuritas = existing.sekuritas;
+            if(t.fee && !existing.fee) t.fee = existing.fee;
+            if(t.net == null && existing.net != null) t.net = existing.net;
+            if(t.gross == null && existing.gross != null) t.gross = existing.gross;
+            txMap.set(idKey, t);
+            if(localSig) idSigs.add(localSig);
+          } else {
+            if(t.id && !existing.id) existing.id = t.id;
+            if(t.sekuritas && !existing.sekuritas) existing.sekuritas = t.sekuritas;
+            if(t.fee && !existing.fee) existing.fee = t.fee;
+            if(existing.net == null && t.net != null) existing.net = t.net;
+            if(existing.gross == null && t.gross != null) existing.gross = t.gross;
+          }
+        }
       }
     } else {
       var sig = _makeTxSig(t);
@@ -960,14 +1001,49 @@ function _mergeDatasets(localObj, cloudObj){
   // WITH a valid id is always kept (id is authoritative); signature
   // matching is only a fallback for legacy items with no id, to avoid
   // re-duplicating the exact same no-id entry present on both sides.
-  function _mergeByIdOrSig(cloudArr, localArr, sigFn){
+  // Signature bersama untuk dedupe koleksi non-transaksi (dividen, mutasi
+  // RDN, crypto, reksa dana, ETF, divInvestData). Dipakai baik oleh cabang
+  // "device baru" di atas maupun merge umum di bawah supaya kedua jalur
+  // memakai definisi "record yang sama" yang identik.
+  function _divSig(d){
+    return (d.date || '') + '|' + (d.ticker || '') + '|' + (d.shares || 0) + '|' + (d.dps || 0);
+  }
+  function _rdnSig(m){
+    return (m.date || '') + '|' + (m.type || '') + '|' + Number(m.amount || 0) + '|' + (m.ket || '') + '|' + (m.account || 'saham') + '|' + (m.linkedTxId || '');
+  }
+  function _cryptoSig(c){
+    return (c.date||'')+'|'+(c.coin||'')+'|'+(c.qty||0)+'|'+(c.priceIdr||0);
+  }
+  function _rdSig(r){
+    return (r.date||'')+'|'+(r.code||'')+'|'+(r.amount||0)+'|'+(r.nab||0);
+  }
+  function _etfSig(t){
+    return (t.date||'')+'|'+(t.type||'')+'|'+(t.ticker||'')+'|'+(t.shares||0)+'|'+(t.priceUSD||0);
+  }
+  function _divInvestSig(d){
+    return (d.date||'')+'|'+(d.ticker||'')+'|'+(d.dps||0)+'|'+(d.shares||0);
+  }
+  function _mergeByIdOrSig(cloudArr, localArr, sigFn, preferLocal){
     var seenIds = new Set(), seenSigs = new Set(), out = [];
+    var indexById = new Map();
     [].concat(Array.isArray(cloudArr) ? cloudArr : [], Array.isArray(localArr) ? localArr : []).forEach(function(item){
       if(!item) return;
       var idKey = item.id != null ? String(item.id) : null;
       if(idKey){
-        if(seenIds.has(idKey)) return;
+        if(seenIds.has(idKey)){
+          // Id yang sama ada di kedua sisi -> tetap SATU record logis
+          // (dedupe by id dipertahankan). FIX AUDIT (DATA-02a): bila isinya
+          // BEDA (record diedit di satu device), sisi dengan dataset lebih
+          // baru menang; cloud selalu diproses lebih dulu, jadi default-nya
+          // cloud dan `preferLocal` hanya dipakai saat lokal lebih baru.
+          var idx = indexById.get(idKey);
+          if(preferLocal && idx !== undefined && sigFn(item) !== sigFn(out[idx])){
+            out[idx] = item;
+          }
+          return;
+        }
         seenIds.add(idKey);
+        indexById.set(idKey, out.length);
         out.push(item);
         return;
       }
@@ -980,34 +1056,32 @@ function _mergeDatasets(localObj, cloudObj){
   }
 
   // 2. Merge Dividends
-  var mergedDiv = _mergeByIdOrSig(cloud.dividends, local.dividends, function(d){
-    return (d.date || '') + '|' + (d.ticker || '') + '|' + (d.shares || 0) + '|' + (d.dps || 0);
-  }).sort(function(a, b){
+  var mergedDiv = _mergeByIdOrSig(cloud.dividends, local.dividends, _divSig, localTime >= cloudTime).sort(function(a, b){
     return (a.date || '').localeCompare(b.date || '') || ((a.id || 0) - (b.id || 0));
   });
 
   // 3. Merge RDN Mutations (Preserve all manual entries: SETOR, TARIK, PENYESUAIAN, BIAYA)
-  var mergedMutations = _mergeByIdOrSig(cloud.rdnMutations, local.rdnMutations, function(m){
-    return (m.date || '') + '|' + (m.type || '') + '|' + Number(m.amount || 0) + '|' + (m.ket || '') + '|' + (m.account || 'saham') + '|' + (m.linkedTxId || '');
-  });
+  var mergedMutations = _mergeByIdOrSig(cloud.rdnMutations, local.rdnMutations, _rdnSig, localTime >= cloudTime);
 
   // 4. Merge Other Assets
-  var mergedCrypto = _mergeByIdOrSig(cloud.cryptoTx, local.cryptoTx, function(c){
-    return (c.date||'')+'|'+(c.coin||'')+'|'+(c.qty||0)+'|'+(c.priceIdr||0);
-  });
+  var mergedCrypto = _mergeByIdOrSig(cloud.cryptoTx, local.cryptoTx, _cryptoSig, localTime >= cloudTime);
 
-  var mergedRd = _mergeByIdOrSig(cloud.rdTx, local.rdTx, function(r){
-    return (r.date||'')+'|'+(r.code||'')+'|'+(r.amount||0)+'|'+(r.nab||0);
-  });
+  var mergedRd = _mergeByIdOrSig(cloud.rdTx, local.rdTx, _rdSig, localTime >= cloudTime);
+
+  // ETF & divInvestData juga WAJIB union (bukan "lokal kalau tidak kosong,
+  // kalau tidak cloud") — device lain yang menambah ETF/divInvest tidak
+  // boleh hilang hanya karena sisi lokal kebetulan sudah punya entri.
+  var mergedEtf = _mergeByIdOrSig(cloud.etfTx, local.etfTx, _etfSig, localTime >= cloudTime);
+  var mergedDivInvest = _mergeByIdOrSig(cloud.divInvestData, local.divInvestData, _divInvestSig, localTime >= cloudTime);
 
   return {
     transactions: mergedTx,
     dividends: mergedDiv,
     rdnMutations: mergedMutations,
     cryptoTx: mergedCrypto,
-    etfTx: (local.etfTx && local.etfTx.length) ? local.etfTx : (cloud.etfTx || []),
+    etfTx: mergedEtf,
     rdTx: mergedRd,
-    divInvestData: (local.divInvestData && local.divInvestData.length) ? local.divInvestData : (cloud.divInvestData || []),
+    divInvestData: mergedDivInvest,
     theses: (local.theses && local.theses.length) ? local.theses : (cloud.theses || []),
     journals: (local.journals && local.journals.length) ? local.journals : (cloud.journals || []),
     priceAlerts: (local.priceAlerts && local.priceAlerts.length) ? local.priceAlerts : (cloud.priceAlerts || []),
@@ -1030,6 +1104,15 @@ var _isApplyingCloudSnapshot = false;
 var _sseSyncSource = null;
 var _sseSyncTargetUid = null;
 var _sseVisibilityListenerAttached = false;
+var _sseReconnectAttempts = 0;
+// Batas reconnect SSE. EventSource akan terus mencoba menyambung ulang
+// secara otomatis setiap kali onerror (termasuk 401 dari Stage-2 auth
+// server) — tanpa batas itu, kredensial yang ditolak berubah menjadi
+// retry-loop tak berujung (kelas bug AGENTS.md §29). Setelah
+// SSE_MAX_RECONNECT_ATTEMPTS kegagalan BERUNTUN, koneksi ditutup dan
+// membiarkan sinkronisasi lain (Supabase Realtime) yang bekerja; counter
+// di-reset setiap kali koneksi BERHASIL (onopen) atau setup baru dimulai.
+var SSE_MAX_RECONNECT_ATTEMPTS = 5;
 
 // Unique Device / Session Identifier across tabs and devices
 var _DEVICE_SESSION_ID = (function(){
@@ -1148,8 +1231,24 @@ function setupMultiDeviceSyncListener(uid){
 
   var streamUrl = '/api/sync/stream?uid=' + encodeURIComponent(targetUid) + '&deviceId=' + encodeURIComponent(_DEVICE_SESSION_ID);
 
+  // MW-P0-001 Stage 2: server /api/sync/stream mewajibkan `token` query
+  // param begitu AUTH_ENFORCE_STAGE2 aktif (lihat lib/auth-verify.js).
+  // Lampirkan hanya kalau sesi Supabase sungguhan ada — guest/demo/SDK
+  // belum siap tidak boleh mengirim token palsu/kosong; server yang
+  // memutuskan (Stage 1 tetap menerima request tanpa token seperti dulu).
+  try {
+    var _sseToken = (typeof getSupabaseAccessToken === 'function') ? getSupabaseAccessToken() : null;
+    if(_sseToken) streamUrl += '&token=' + encodeURIComponent(_sseToken);
+  } catch(e) { /* token tidak tersedia — tetap sambung tanpa token */ }
+
+  _sseReconnectAttempts = 0;
   try {
     _sseSyncSource = new EventSource(streamUrl);
+    _sseSyncSource.onopen = function(){
+      // Koneksi berhasil -> reset anggaran reconnect (kegagalan harus
+      // BERUNTUN untuk dianggap kredensial/endpoint yang salah).
+      _sseReconnectAttempts = 0;
+    };
     _sseSyncSource.onmessage = function(event){
       if(!event || !event.data) return;
       try {
@@ -1179,7 +1278,16 @@ function setupMultiDeviceSyncListener(uid){
     };
 
     _sseSyncSource.onerror = function(){
-      // EventSource automatically reconnects on error
+      // EventSource otomatis reconnect pada error. Beri batas supaya
+      // kegagalan persisten (mis. 401 karena token ditolak Stage-2) tidak
+      // menjadi retry-loop tanpa akhir di latar belakang: setelah
+      // SSE_MAX_RECONNECT_ATTEMPTS kegagalan beruntun, tutup dan berhenti.
+      _sseReconnectAttempts++;
+      if(_sseReconnectAttempts >= SSE_MAX_RECONNECT_ATTEMPTS){
+        try { if(_sseSyncSource) _sseSyncSource.close(); } catch(e) {}
+        _sseSyncSource = null;
+        _sseReconnectAttempts = 0;
+      }
     };
   } catch(e){
     console.warn('Unable to initialize EventSource multi-device sync:', e);
@@ -1359,12 +1467,13 @@ async function fireSaveAllData(){
     adminExtra: (typeof ADMIN_EXTRA !== 'undefined') ? ADMIN_EXTRA : [],
     idxUniverse: (typeof IDX_UNIVERSE !== 'undefined') ? IDX_UNIVERSE : null,
     idxUniverseInfo: (typeof IDX_UNIVERSE_INFO !== 'undefined') ? IDX_UNIVERSE_INFO : null,
-    nextTxId: Math.max(nextTxId || 1, _maxIdPlus1(transactions)),
-    nextDivId: Math.max(nextDivId || 1, _maxIdPlus1(dividends)),
-    nextRdnId: Math.max(nextRdnId || 1, _maxIdPlus1(rdnMutations)),
-    nextCryptoId: Math.max(nextCryptoId || 1, _maxIdPlus1(cryptoTx)),
-    nextEtfId: Math.max(nextEtfId || 1, _maxIdPlus1(etfTx)),
-    nextRdId: Math.max(nextRdId || 1, _maxIdPlus1(rdTx)),
+    // DATA-02b: floor Date.now() via _nextIdFloor() — lihat definisinya.
+    nextTxId: _nextIdFloor(nextTxId, transactions),
+    nextDivId: _nextIdFloor(nextDivId, dividends),
+    nextRdnId: _nextIdFloor(nextRdnId, rdnMutations),
+    nextCryptoId: _nextIdFloor(nextCryptoId, cryptoTx),
+    nextEtfId: _nextIdFloor(nextEtfId, etfTx),
+    nextRdId: _nextIdFloor(nextRdId, rdTx),
     // FIX AUDIT (CRITICAL, sticky-empty-flag data loss): see matching note
     // in saveData() - a normal save must always clear any stale
     // isExplicitlyEmpty:true left by a prior clear/incident, otherwise

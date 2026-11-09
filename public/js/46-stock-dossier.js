@@ -779,15 +779,24 @@ function dossierComputeFundamentalScore(harvested) {
     };
   }
 
-  var roe = (qf.roe !== undefined && qf.roe !== null) ? Number(qf.roe) : ((fund.roe !== undefined && fund.roe !== null) ? Number(fund.roe) : null);
-  var der = (qf.der !== undefined && qf.der !== null) ? Number(qf.der) : ((fund.der !== undefined && fund.der !== null) ? Number(fund.der) : null);
-  var npm = (qf.npm !== undefined && qf.npm !== null) ? Number(qf.npm) :
+  var dossierTicker = String(harvested.ticker || (harvested.quote && harvested.quote.ticker) || '').toUpperCase();
+  var manualFund = (typeof getFundamentalOverride === 'function') ? getFundamentalOverride(dossierTicker) : null;
+  var mfR = (manualFund && manualFund.ratios) ? manualFund.ratios : (manualFund || {});
+
+  var roe = (mfR.roe !== undefined && mfR.roe !== null && mfR.roe !== '' && !isNaN(Number(mfR.roe))) ? Number(mfR.roe) :
+            ((qf.roe !== undefined && qf.roe !== null) ? Number(qf.roe) : ((fund.roe !== undefined && fund.roe !== null) ? Number(fund.roe) : null));
+  var der = (mfR.der !== undefined && mfR.der !== null && mfR.der !== '' && !isNaN(Number(mfR.der))) ? Number(mfR.der) :
+            ((qf.der !== undefined && qf.der !== null) ? Number(qf.der) : ((fund.der !== undefined && fund.der !== null) ? Number(fund.der) : null));
+  var npm = (mfR.npm !== undefined && mfR.npm !== null && mfR.npm !== '' && !isNaN(Number(mfR.npm))) ? Number(mfR.npm) :
+            ((qf.npm !== undefined && qf.npm !== null) ? Number(qf.npm) :
             (qf.netProfitMargin !== undefined && qf.netProfitMargin !== null) ? Number(qf.netProfitMargin) :
             (fund.npm !== undefined && fund.npm !== null) ? Number(fund.npm) :
-            (fund.netProfitMargin !== undefined && fund.netProfitMargin !== null) ? Number(fund.netProfitMargin) : null;
-  var divYield = (qf.dividendYield !== undefined && qf.dividendYield !== null) ? Number(qf.dividendYield) :
+            (fund.netProfitMargin !== undefined && fund.netProfitMargin !== null) ? Number(fund.netProfitMargin) : null);
+  var divYield = (mfR.dividendYield !== undefined && mfR.dividendYield !== null && mfR.dividendYield !== '' && !isNaN(Number(mfR.dividendYield))) ? Number(mfR.dividendYield) :
+                 ((mfR.dy !== undefined && mfR.dy !== null && mfR.dy !== '' && !isNaN(Number(mfR.dy))) ? Number(mfR.dy) :
+                 ((qf.dividendYield !== undefined && qf.dividendYield !== null) ? Number(qf.dividendYield) :
                  (fund.dividendYield !== undefined && fund.dividendYield !== null) ? Number(fund.dividendYield) :
-                 (fund.dy !== undefined && fund.dy !== null) ? Number(fund.dy) : null;
+                 (fund.dy !== undefined && fund.dy !== null) ? Number(fund.dy) : null));
 
   if (roe === null && der === null && npm === null && divYield === null) {
     return {

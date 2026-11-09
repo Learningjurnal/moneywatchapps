@@ -198,6 +198,9 @@ function getStockIntelData(ticker) {
   var q52 = quote.fiftyTwoWeek || {};
   var isRealFund = qf.isReal === true;
 
+  var manualFund = (typeof getFundamentalOverride === 'function') ? getFundamentalOverride(tk) : null;
+  var mfR = (manualFund && manualFund.ratios) ? manualFund.ratios : (manualFund || {});
+
   var perStr = '-';
   var pbvStr = '-';
   var roeStr = '-';
@@ -205,25 +208,31 @@ function getStockIntelData(ticker) {
   var derStr = '-';
   var epsStr = '-';
 
-  if (qf.per && qf.per > 0) perStr = qf.per.toFixed(1) + 'x';
+  if (mfR.per !== undefined && mfR.per !== null && mfR.per !== '' && Number(mfR.per) > 0) perStr = Number(mfR.per).toFixed(1) + 'x';
+  else if (qf.per && qf.per > 0) perStr = qf.per.toFixed(1) + 'x';
   else if (fund && fund.per) perStr = typeof fund.per === 'number' ? fund.per.toFixed(1) + 'x' : String(fund.per);
   else if (fs && fs.pe) perStr = fs.pe.toFixed(1) + 'x';
 
-  if (qf.pbv && qf.pbv > 0) pbvStr = qf.pbv.toFixed(2) + 'x';
+  if (mfR.pbv !== undefined && mfR.pbv !== null && mfR.pbv !== '' && Number(mfR.pbv) > 0) pbvStr = Number(mfR.pbv).toFixed(2) + 'x';
+  else if (qf.pbv && qf.pbv > 0) pbvStr = qf.pbv.toFixed(2) + 'x';
   else if (fund && fund.pbv) pbvStr = typeof fund.pbv === 'number' ? fund.pbv.toFixed(2) + 'x' : String(fund.pbv);
   else if (fs && fs.pbv) pbvStr = fs.pbv.toFixed(2) + 'x';
 
-  if (qf.roe && qf.roe !== 0) roeStr = qf.roe.toFixed(1) + '%';
+  if (mfR.roe !== undefined && mfR.roe !== null && mfR.roe !== '' && !isNaN(Number(mfR.roe))) roeStr = Number(mfR.roe).toFixed(1) + '%';
+  else if (qf.roe && qf.roe !== 0) roeStr = qf.roe.toFixed(1) + '%';
   else if (fund && fund.roe) roeStr = typeof fund.roe === 'number' ? fund.roe.toFixed(1) + '%' : String(fund.roe);
   else if (fs && fs.roe) roeStr = fs.roe.toFixed(1) + '%';
 
-  if (qf.roa && qf.roa !== 0) roaStr = qf.roa.toFixed(1) + '%';
+  if (mfR.roa !== undefined && mfR.roa !== null && mfR.roa !== '' && !isNaN(Number(mfR.roa))) roaStr = Number(mfR.roa).toFixed(1) + '%';
+  else if (qf.roa && qf.roa !== 0) roaStr = qf.roa.toFixed(1) + '%';
   else if (fund && fund.roa) roaStr = typeof fund.roa === 'number' ? fund.roa.toFixed(1) + '%' : String(fund.roa);
 
-  if (qf.der !== undefined && qf.der !== null) derStr = qf.der.toFixed(2) + 'x';
+  if (mfR.der !== undefined && mfR.der !== null && mfR.der !== '' && !isNaN(Number(mfR.der))) derStr = Number(mfR.der).toFixed(2) + 'x';
+  else if (qf.der !== undefined && qf.der !== null) derStr = qf.der.toFixed(2) + 'x';
   else if (fund && fund.der) derStr = typeof fund.der === 'number' ? fund.der.toFixed(2) + 'x' : String(fund.der);
 
-  if (qf.eps && qf.eps > 0) epsStr = 'Rp ' + Math.round(qf.eps).toLocaleString('id-ID');
+  if (mfR.eps !== undefined && mfR.eps !== null && mfR.eps !== '' && Number(mfR.eps) > 0) epsStr = 'Rp ' + Math.round(Number(mfR.eps)).toLocaleString('id-ID');
+  else if (qf.eps && qf.eps > 0) epsStr = 'Rp ' + Math.round(qf.eps).toLocaleString('id-ID');
   else if (fund && fund.eps) epsStr = 'Rp ' + Math.round(fund.eps).toLocaleString('id-ID');
 
   // 2. Support & Resistance — FIX (2026-09-18, audit menyeluruh): dulu

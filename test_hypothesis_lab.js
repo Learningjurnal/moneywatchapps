@@ -3,10 +3,49 @@
  */
 
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   getHypothesisCatalog,
+  INITIAL_HYPOTHESES,
   evaluateHypothesisStatistically
 } from './lib/engine/hypothesis-lab.js';
+
+const CATALOG_FILE_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'data', 'hypotheses_catalog.json');
+
+// Field hasil pengujian yang TIDAK BOLEH berisi angka pada katalog bawaan.
+// Semuanya harus null sampai ada evaluasi empiris riil (FAB-01 regression guard).
+const FORBIDDEN_INITIAL_STAT_FIELDS = [
+  'testedAt',
+  'sampleSize',
+  'winRatePct',
+  'meanExcessReturnPct',
+  'lowerConfidenceInterval',
+  'upperConfidenceInterval',
+  'pValue'
+];
+const REQUIRED_DEFINITION_FIELDS = ['id', 'title', 'statement', 'strategyRef', 'horizonDays', 'minVolumeRp'];
+
+function assertHonestDefinition(h, label) {
+  assert.ok(h && typeof h === 'object', `${label}: entri hipotesis harus objek`);
+  REQUIRED_DEFINITION_FIELDS.forEach((field) => {
+    const value = h[field];
+    assert.ok(value !== undefined && value !== null && value !== '', `${label}: field definisi '${field}' wajib ada`);
+  });
+  assert.ok(typeof h.statement === 'string' && h.statement.length > 20, `${label}: statement harus berupa kalimat hipotesis yang bisa difalsifikasi`);
+  assert.strictEqual(h.status, 'NOT_TESTED', `${label}: katalog bawaan harus berstatus NOT_TESTED (belum pernah dievaluasi dengan data riil)`);
+  FORBIDDEN_INITIAL_STAT_FIELDS.forEach((field) => {
+    assert.strictEqual(
+      h[field],
+      null,
+      `${label}: '${field}' harus null — angka statistik karangan tidak boleh kembali ke katalog bawaan`
+    );
+  });
+  assert.ok(typeof h.notes === 'string' && h.notes.length > 20, `${label}: notes wajib menjelaskan status & cara evaluasinya`);
+  assert.ok(/belum pernah diuji/i.test(h.notes), `${label}: notes harus menyatakan hipotesis belum pernah diuji`);
+  assert.ok(!/EDGE TERBUKTI|terbukti signifikan/i.test(h.notes), `${label}: notes tidak boleh mengklaim edge/statistik yang belum diuji`);
+}
 
 console.log('═══════════════════════════════════════════════════════');
 console.log('🧪 TEST: AUTONOMOUS HYPOTHESIS LAB');
@@ -28,17 +67,28 @@ function test(name, fn) {
   }
 }
 
-test('getHypothesisCatalog: mengembalikan daftar hipotesis kuantitatif dengan metrik statistik', () => {
-  const catalog = getHypothesisCatalog();
-  assert.ok(Array.isArray(catalog), 'Katalog harus berupa array');
-  assert.ok(catalog.length >= 4, 'Minimal 4 hipotesis default institusional');
+test('getHypothesisCatalog: hanya definisi hipotesis JUJUR — NOT_TESTED, tanpa angka statistik apa pun', () => {
+  // 1) Definisi bawaan yang dikirim aplikasi (fallback katalog) tidak boleh memuat
+  //    sampleSize/winRate/CI/pValue/testedAt/klaim "EDGE TERBUKTI" karangan (FAB-01).
+  assert.ok(Array.isArray(INITIAL_HYPOTHESES), 'INITIAL_HYPOTHESES harus berupa array');
+  assert.ok(INITIAL_HYPOTHESES.length >= 4, 'Minimal 4 definisi hipotesis default institusional');
+  INITIAL_HYPOTHESES.forEach((h, i) => assertHonestDefinition(h, `INITIAL_HYPOTHESES[${i}] (${h && h.id})`));
 
-  const first = catalog[0];
-  assert.ok(first.id);
-  assert.ok(first.statement);
-  assert.ok(typeof first.winRatePct === 'number');
-  assert.ok(typeof first.meanExcessReturnPct === 'number');
-  assert.ok(['ACCEPTED', 'REJECTED', 'TESTING'].includes(first.status));
+  const ids = INITIAL_HYPOTHESES.map((h) => h.id);
+  assert.strictEqual(new Set(ids).size, ids.length, 'id hipotesis harus unik agar POST /api/ai/hypotheses/test bisa menargetkan satu hipotesis');
+  assert.ok(
+    !INITIAL_HYPOTHESES.some((h) => ['ACCEPTED', 'REJECTED'].includes(h.status)),
+    'Katalog bawaan tidak boleh berisi status hasil uji (ACCEPTED/REJECTED)'
+  );
+
+  // 2) Selama file hasil evaluasi riil belum ada, getHypothesisCatalog() harus
+  //    mengembalikan definisi jujur yang sama — bukan angka pengganti.
+  if (!fs.existsSync(CATALOG_FILE_PATH)) {
+    const catalog = getHypothesisCatalog();
+    assert.ok(Array.isArray(catalog), 'Katalog harus berupa array');
+    assert.strictEqual(catalog.length, INITIAL_HYPOTHESES.length, 'Tanpa file data, katalog bawaan = definisi hipotesis jujur');
+    catalog.forEach((h, i) => assertHonestDefinition(h, `getHypothesisCatalog()[${i}] (${h && h.id})`));
+  }
 });
 
 test('evaluateHypothesisStatistically: menolak evaluasi jika sampel data < 10', () => {

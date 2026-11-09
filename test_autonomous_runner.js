@@ -20,17 +20,32 @@ console.log('══════════════════════�
 
 let passedTests = 0;
 let totalTests = 0;
+const pendingAsyncTests = [];
+
+function recordPass(name) {
+  console.log(`  ✅ [PASS] ${name}`);
+  passedTests++;
+}
+
+function recordFail(name, err) {
+  console.error(`  ❌ [FAIL] ${name}`);
+  console.error(`     Error: ${err && err.message ? err.message : err}`);
+  process.exitCode = 1;
+}
 
 function test(name, fn) {
   totalTests++;
   try {
-    fn();
-    console.log(`  ✅ [PASS] ${name}`);
-    passedTests++;
+    const result = fn();
+    // Async test: ditampung lalu ditunggu sebelum ringkasan dicetak, supaya
+    // assertion di dalamnya benar-benar dieksekusi (bukan fire-and-forget).
+    if (result && typeof result.then === 'function') {
+      pendingAsyncTests.push(result.then(() => recordPass(name), (err) => recordFail(name, err)));
+      return;
+    }
+    recordPass(name);
   } catch (err) {
-    console.error(`  ❌ [FAIL] ${name}`);
-    console.error(`     Error: ${err.message}`);
-    process.exitCode = 1;
+    recordFail(name, err);
   }
 }
 

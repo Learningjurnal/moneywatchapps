@@ -567,6 +567,178 @@
 
       </div>
 
+
+      <!-- GRID KHUSUS: Form Input & Override Data Fundamental Manual -->
+      <div class="card" style="padding:22px 24px;border:1px solid rgba(59,130,246,0.3);margin-top:16px;background:linear-gradient(180deg, rgba(59,130,246,0.03) 0%, var(--card) 100%)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:8px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px">
+              <i class="ti ti-database-cog"></i>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;color:var(--text)">Input &amp; Kelola Data Fundamental Emiten (Manual Override)</div>
+              <div style="font-size:11.5px;color:var(--text3)">Input atau lengkapi rasio keuangan &amp; riwayat 5 tahun laporan keuangan untuk emiten yang belum tersedia di feed bursa</div>
+            </div>
+          </div>
+          <span class="badge b-up">Tersimpan Lokal &amp; Cloud Sync</span>
+        </div>
+
+        <!-- Form Wrapper -->
+        <form id="v6-form-fundamental-override" onsubmit="MW_SETTINGS.handleSaveFundamental(event)">
+          <!-- Ticker Selection Bar -->
+          <div style="background:var(--bg3);padding:14px 16px;border-radius:8px;border:1px solid var(--border2);margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:200px">
+                <label class="cfg-label" style="margin-bottom:4px">KODE EMITEN (TICKER BEI)</label>
+                <div style="display:flex;gap:8px">
+                  <input type="text" id="fund-cfg-ticker" class="form-input mono" placeholder="Contoh: BBTN, BRIS, PTBA" style="text-transform:uppercase;font-weight:700;font-size:14px;letter-spacing:1px" required maxlength="10">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="MW_SETTINGS.loadFundamentalToForm(document.getElementById('fund-cfg-ticker').value)">
+                    <i class="ti ti-search"></i> Muat / Cek Data
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="MW_SETTINGS.resetFundamentalForm()">
+                    Kosongkan
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Ticker Chips -->
+            <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:11px;font-weight:600;color:var(--text3)">Pilihan Cepat Saham Populer:</span>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('BBTN')">BBTN</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('BRIS')">BRIS</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('PTBA')">PTBA</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('ANTM')">ANTM</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('KLBF')">KLBF</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('PGAS')">PGAS</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('ICBP')">ICBP</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('INDF')">INDF</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('MEDC')">MEDC</button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.quickSelectFundamentalTicker('AMMN')">AMMN</button>
+            </div>
+          </div>
+
+          <!-- Section 1: Rasio Finansial Utama Terkini -->
+          <div style="margin-bottom:20px">
+            <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-chart-dots" style="color:var(--accent)"></i>
+              1. Rasio Finansial Utama Terkini (Untuk Stock Intel, Dossier &amp; Cockpit)
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px">
+              <div>
+                <label class="cfg-label">PER (P/E Ratio)</label>
+                <input type="number" id="fund-cfg-per" class="form-input mono" step="0.01" placeholder="cth: 7.5">
+                <div class="cfg-hint">x (kali)</div>
+              </div>
+              <div>
+                <label class="cfg-label">PBV (P/B Ratio)</label>
+                <input type="number" id="fund-cfg-pbv" class="form-input mono" step="0.01" placeholder="cth: 0.85">
+                <div class="cfg-hint">x (kali)</div>
+              </div>
+              <div>
+                <label class="cfg-label">ROE (%)</label>
+                <input type="number" id="fund-cfg-roe" class="form-input mono" step="0.01" placeholder="cth: 14.5">
+                <div class="cfg-hint">Return on Equity</div>
+              </div>
+              <div>
+                <label class="cfg-label">ROA (%)</label>
+                <input type="number" id="fund-cfg-roa" class="form-input mono" step="0.01" placeholder="cth: 2.1">
+                <div class="cfg-hint">Return on Assets</div>
+              </div>
+              <div>
+                <label class="cfg-label">DER (Debt/Equity)</label>
+                <input type="number" id="fund-cfg-der" class="form-input mono" step="0.01" placeholder="cth: 0.75">
+                <div class="cfg-hint">x (leverage)</div>
+              </div>
+              <div>
+                <label class="cfg-label">NPM (%)</label>
+                <input type="number" id="fund-cfg-npm" class="form-input mono" step="0.01" placeholder="cth: 18.2">
+                <div class="cfg-hint">Net Profit Margin</div>
+              </div>
+              <div>
+                <label class="cfg-label">Dividend Yield (%)</label>
+                <input type="number" id="fund-cfg-divyield" class="form-input mono" step="0.01" placeholder="cth: 6.5">
+                <div class="cfg-hint">Yield dividen tahunan</div>
+              </div>
+              <div>
+                <label class="cfg-label">EPS Terkini (Rp)</label>
+                <input type="number" id="fund-cfg-eps" class="form-input mono" step="1" placeholder="cth: 245">
+                <div class="cfg-hint">Laba per lembar</div>
+              </div>
+              <div>
+                <label class="cfg-label">BVPS (Rp)</label>
+                <input type="number" id="fund-cfg-bvps" class="form-input mono" step="1" placeholder="cth: 1850">
+                <div class="cfg-hint">Nilai buku/lembar</div>
+              </div>
+              <div>
+                <label class="cfg-label">Harga Acuan (Rp)</label>
+                <input type="number" id="fund-cfg-price" class="form-input mono" step="1" placeholder="cth: 1350">
+                <div class="cfg-hint">Harga pasar saham</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Riwayat 5 Tahun Laporan Keuangan (Harga Wajar) -->
+          <div style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px">
+                <i class="ti ti-table" style="color:var(--accent)"></i>
+                2. Riwayat Laporan Keuangan Tahunan (Untuk Engine Harga Wajar &amp; Valuasi Graham/DCF)
+              </div>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.addFundamentalHistoryRow()">
+                <i class="ti ti-plus"></i> Tambah Baris Tahun
+              </button>
+            </div>
+
+            <div style="overflow-x:auto;border:1px solid var(--border2);border-radius:8px">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+                <thead>
+                  <tr style="background:var(--bg3);border-bottom:1px solid var(--border2);color:var(--text2)">
+                    <th style="padding:8px 10px;font-weight:600;width:75px">Tahun</th>
+                    <th style="padding:8px 10px;font-weight:600">EPS (Rp)</th>
+                    <th style="padding:8px 10px;font-weight:600">Ekuitas / Lbr (Rp)</th>
+                    <th style="padding:8px 10px;font-weight:600">Jml Saham Beredar</th>
+                    <th style="padding:8px 10px;font-weight:600">DPS (Rp)</th>
+                    <th style="padding:8px 10px;font-weight:600">PER Historis</th>
+                    <th style="padding:8px 10px;font-weight:600">Laba Bersih (Rp)</th>
+                    <th style="padding:8px 10px;text-align:center;width:40px">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="fund-history-tbody">
+                  <!-- Dynamic rows inserted by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Submit Button & Messages -->
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid var(--border2);padding-top:16px">
+            <div style="font-size:11.5px;color:var(--text3)">
+              * Data yang disimpan akan langsung otomatis digunakan di modul <b>Harga Wajar</b>, <b>Stock Intel</b>, dan <b>Stock Dossier</b>.
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700">
+                <i class="ti ti-check"></i> Simpan Data Fundamental
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Section 3: Daftar Emiten yang Sudah Tersimpan -->
+        <div style="margin-top:24px;border-top:1px dashed var(--border2);padding-top:16px">
+          <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+            <span style="display:flex;align-items:center;gap:6px">
+              <i class="ti ti-list" style="color:var(--accent)"></i>
+              Daftar Emiten dengan Data Manual Override:
+            </span>
+            <span id="fund-override-count" class="badge b-up">0 Emiten</span>
+          </div>
+          <div id="fund-override-list-box" style="font-size:12px;color:var(--text3)">
+            Memuat daftar emiten...
+          </div>
+        </div>
+      </div>
+
       <!-- GRID 4: API Quota Monitor (Invezgo) -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
 
@@ -597,6 +769,8 @@
 
     c.innerHTML = html;
     loadApiQuotaWidgets();
+    renderFundamentalRows([]);
+    renderFundamentalOverrideList();
   }
 
   // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status). The Gemini
@@ -690,6 +864,330 @@
         dqBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat telemetri Data Quality Gate (' + escHtml(String(err && err.message || err)) + ').</span>';
       }
     }
+  }
+
+
+  // ============================================================================
+  // MANUAL FUNDAMENTAL DATA MANAGER
+  // ============================================================================
+  function renderFundamentalRows(rows) {
+    var tbody = document.getElementById('fund-history-tbody');
+    if (!tbody) return;
+    
+    var currentYear = new Date().getFullYear();
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      rows = [];
+      for (var i = 4; i >= 0; i--) {
+        rows.push({ year: currentYear - i, eps: '', equity: '', shares: '', dps: '', per: '', netIncome: '' });
+      }
+    }
+
+    var html = '';
+    rows.forEach(function(r) {
+      html += `
+        <tr style="border-bottom:1px solid var(--border2)">
+          <td style="padding:6px 8px">
+            <input type="number" class="form-input mono fund-row-year" value="${r.year || ''}" style="width:70px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-eps" value="${r.eps !== undefined ? r.eps : ''}" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 150">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-equity" value="${r.equity !== undefined ? r.equity : ''}" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1200">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-shares" value="${r.shares !== undefined ? r.shares : ''}" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10000000000">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-dps" value="${r.dps !== undefined ? r.dps : ''}" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 50">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-per" value="${r.per !== undefined ? r.per : ''}" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10.5">
+          </td>
+          <td style="padding:6px 8px">
+            <input type="number" step="any" class="form-input mono fund-row-netincome" value="${r.netIncome !== undefined ? r.netIncome : ''}" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1500000000000">
+          </td>
+          <td style="padding:6px 8px;text-align:center">
+            <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.removeFundamentalHistoryRow(this)" title="Hapus Baris">
+              <i class="ti ti-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function addFundamentalHistoryRow() {
+    var tbody = document.getElementById('fund-history-tbody');
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll('tr');
+    var lastYear = new Date().getFullYear();
+    if (rows.length > 0) {
+      var lastInp = rows[rows.length - 1].querySelector('.fund-row-year');
+      if (lastInp && lastInp.value) {
+        lastYear = parseInt(lastInp.value, 10) + 1;
+      }
+    }
+    var tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border2)';
+    tr.innerHTML = `
+      <td style="padding:6px 8px">
+        <input type="number" class="form-input mono fund-row-year" value="${lastYear}" style="width:70px;padding:4px 6px;font-size:11.5px" placeholder="Tahun" required>
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-eps" value="" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 150">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-equity" value="" style="width:100%;min-width:85px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1200">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-shares" value="" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10000000000">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-dps" value="" style="width:100%;min-width:75px;padding:4px 6px;font-size:11.5px" placeholder="cth: 50">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-per" value="" style="width:100%;min-width:65px;padding:4px 6px;font-size:11.5px" placeholder="cth: 10.5">
+      </td>
+      <td style="padding:6px 8px">
+        <input type="number" step="any" class="form-input mono fund-row-netincome" value="" style="width:100%;min-width:110px;padding:4px 6px;font-size:11.5px" placeholder="cth: 1500000000000">
+      </td>
+      <td style="padding:6px 8px;text-align:center">
+        <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.removeFundamentalHistoryRow(this)" title="Hapus Baris">
+          <i class="ti ti-trash"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  function removeFundamentalHistoryRow(btn) {
+    if (!btn) return;
+    var tr = btn.closest('tr');
+    if (tr) tr.remove();
+  }
+
+  function resetFundamentalForm() {
+    var tInp = document.getElementById('fund-cfg-ticker');
+    if (tInp) tInp.value = '';
+    ['fund-cfg-per', 'fund-cfg-pbv', 'fund-cfg-roe', 'fund-cfg-roa', 'fund-cfg-der',
+     'fund-cfg-npm', 'fund-cfg-divyield', 'fund-cfg-eps', 'fund-cfg-bvps', 'fund-cfg-price'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    renderFundamentalRows([]);
+  }
+
+  function loadFundamentalToForm(ticker) {
+    if (!ticker) return;
+    var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+    var tInp = document.getElementById('fund-cfg-ticker');
+    if (tInp) tInp.value = tk;
+
+    var override = typeof getFundamentalOverride === 'function' ? getFundamentalOverride(tk) : null;
+    var dbEntry = (typeof STOCK_FINANCIAL_DATABASE !== 'undefined' && STOCK_FINANCIAL_DATABASE[tk]) ? STOCK_FINANCIAL_DATABASE[tk] : null;
+
+    var ratios = (override && override.ratios) ? override.ratios : {};
+    var rows = (override && Array.isArray(override.rows) && override.rows.length) ? override.rows : (dbEntry ? dbEntry.rows : []);
+
+    var setV = function(id, v) {
+      var el = document.getElementById(id);
+      if (el) el.value = (v !== undefined && v !== null && v !== '') ? v : '';
+    };
+
+    setV('fund-cfg-per', ratios.per !== undefined ? ratios.per : (dbEntry ? '' : ''));
+    setV('fund-cfg-pbv', ratios.pbv);
+    setV('fund-cfg-roe', ratios.roe);
+    setV('fund-cfg-roa', ratios.roa);
+    setV('fund-cfg-der', ratios.der);
+    setV('fund-cfg-npm', ratios.npm);
+    setV('fund-cfg-divyield', ratios.dividendYield);
+    setV('fund-cfg-eps', ratios.eps);
+    setV('fund-cfg-bvps', ratios.bvps);
+    setV('fund-cfg-price', override ? override.currentPrice : (dbEntry ? dbEntry.price : ''));
+
+    renderFundamentalRows(rows);
+
+    if (override) {
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Data manual override ' + tk + ' dimuat ke form', 'var(--accent)');
+      }
+    } else if (dbEntry) {
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Data dasar ' + tk + ' dimuat dari kurasi bawaan', 'var(--blue)');
+      }
+    } else {
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Emiten ' + tk + ' belum memiliki data tersimpan. Siap diinput.', 'var(--amber)');
+      }
+    }
+  }
+
+  function quickSelectFundamentalTicker(tk) {
+    loadFundamentalToForm(tk);
+  }
+
+  function handleSaveFundamental(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var tInp = document.getElementById('fund-cfg-ticker');
+    var tk = tInp ? tInp.value.trim().toUpperCase().replace(/\.JK$/i, '') : '';
+    if (!tk) {
+      alert('Silakan masukkan kode ticker emiten.');
+      return;
+    }
+
+    var getNum = function(id) {
+      var el = document.getElementById(id);
+      if (!el || el.value === '') return null;
+      var n = parseFloat(el.value);
+      return isNaN(n) ? null : n;
+    };
+
+    var ratios = {
+      per: getNum('fund-cfg-per'),
+      pbv: getNum('fund-cfg-pbv'),
+      roe: getNum('fund-cfg-roe'),
+      roa: getNum('fund-cfg-roa'),
+      der: getNum('fund-cfg-der'),
+      npm: getNum('fund-cfg-npm'),
+      dividendYield: getNum('fund-cfg-divyield'),
+      eps: getNum('fund-cfg-eps'),
+      bvps: getNum('fund-cfg-bvps')
+    };
+    var currentPrice = getNum('fund-cfg-price');
+
+    // Collect history rows
+    var tbody = document.getElementById('fund-history-tbody');
+    var rows = [];
+    if (tbody) {
+      var trs = tbody.querySelectorAll('tr');
+      trs.forEach(function(tr) {
+        var yInp = tr.querySelector('.fund-row-year');
+        var epsInp = tr.querySelector('.fund-row-eps');
+        var eqInp = tr.querySelector('.fund-row-equity');
+        var shInp = tr.querySelector('.fund-row-shares');
+        var dpsInp = tr.querySelector('.fund-row-dps');
+        var perInp = tr.querySelector('.fund-row-per');
+        var niInp = tr.querySelector('.fund-row-netincome');
+
+        var year = yInp ? parseInt(yInp.value, 10) : null;
+        if (year && !isNaN(year)) {
+          var parseF = function(inp) {
+            if (!inp || inp.value === '') return '';
+            var val = parseFloat(inp.value);
+            return isNaN(val) ? '' : val;
+          };
+          rows.push({
+            year: year,
+            eps: parseF(epsInp),
+            equity: parseF(eqInp),
+            shares: parseF(shInp),
+            dps: parseF(dpsInp),
+            per: parseF(perInp),
+            netIncome: parseF(niInp)
+          });
+        }
+      });
+    }
+
+    // Urutkan rows berdasarkan tahun menaik
+    rows.sort(function(a, b) { return a.year - b.year; });
+
+    var payload = {
+      ticker: tk,
+      currentPrice: currentPrice,
+      ratios: ratios,
+      rows: rows
+    };
+
+    if (typeof saveFundamentalOverride === 'function') {
+      var ok = saveFundamentalOverride(tk, payload);
+      if (ok) {
+        if (typeof showSaveStatus === 'function') {
+          showSaveStatus('Data fundamental ' + tk + ' berhasil disimpan & disinkronkan!', 'var(--green)');
+        }
+        renderFundamentalOverrideList();
+      } else {
+        alert('Gagal menyimpan data fundamental ' + tk);
+      }
+    }
+  }
+
+  function handleDeleteFundamental(tk) {
+    if (!tk) return;
+    if (confirm('Hapus data fundamental manual untuk emiten ' + tk + '? Data akan kembali ke sumber feed default.')) {
+      if (typeof deleteFundamentalOverride === 'function') {
+        deleteFundamentalOverride(tk);
+        if (typeof showSaveStatus === 'function') {
+          showSaveStatus('Data fundamental ' + tk + ' telah dihapus');
+        }
+        renderFundamentalOverrideList();
+        var currentTInp = document.getElementById('fund-cfg-ticker');
+        if (currentTInp && currentTInp.value.toUpperCase() === tk.toUpperCase()) {
+          resetFundamentalForm();
+        }
+      }
+    }
+  }
+
+  function renderFundamentalOverrideList() {
+    var box = document.getElementById('fund-override-list-box');
+    var countBadge = document.getElementById('fund-override-count');
+    if (!box) return;
+
+    var all = typeof getAllFundamentalOverrides === 'function' ? getAllFundamentalOverrides() : {};
+    var tickers = Object.keys(all).sort();
+
+    if (countBadge) {
+      countBadge.textContent = tickers.length + ' Emiten';
+    }
+
+    if (tickers.length === 0) {
+      box.innerHTML = '<div style="padding:14px;text-align:center;background:var(--bg3);border-radius:6px;color:var(--text3)">Belum ada data fundamental manual yang disimpan. Pilih saham di atas untuk mulai input.</div>';
+      return;
+    }
+
+    var html = '<div style="overflow-x:auto;border:1px solid var(--border2);border-radius:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<thead style="background:var(--bg3);border-bottom:1px solid var(--border2);color:var(--text2)"><tr>';
+    html += '<th style="padding:8px 10px;text-align:left">Ticker</th>';
+    html += '<th style="padding:8px 10px;text-align:left">Status</th>';
+    html += '<th style="padding:8px 10px;text-align:right">PER</th>';
+    html += '<th style="padding:8px 10px;text-align:right">PBV</th>';
+    html += '<th style="padding:8px 10px;text-align:right">ROE</th>';
+    html += '<th style="padding:8px 10px;text-align:right">DER</th>';
+    html += '<th style="padding:8px 10px;text-align:right">Div Yield</th>';
+    html += '<th style="padding:8px 10px;text-align:center">Histori</th>';
+    html += '<th style="padding:8px 10px;text-align:left">Diperbarui</th>';
+    html += '<th style="padding:8px 10px;text-align:center">Aksi</th>';
+    html += '</tr></thead><tbody>';
+
+    tickers.forEach(function(tk) {
+      var item = all[tk];
+      var r = item.ratios || {};
+      var numRows = Array.isArray(item.rows) ? item.rows.length : 0;
+      var dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'}) : '-';
+
+      html += '<tr style="border-bottom:1px solid var(--border2)">';
+      html += '<td style="padding:8px 10px;font-weight:700;color:var(--text);font-family:monospace">' + tk + '</td>';
+      html += '<td style="padding:8px 10px"><span class="badge b-up" style="font-size:10px">MANUAL</span></td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">' + (r.per != null ? r.per.toFixed(1) + 'x' : '—') + '</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">' + (r.pbv != null ? r.pbv.toFixed(2) + 'x' : '—') + '</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">' + (r.roe != null ? r.roe.toFixed(1) + '%' : '—') + '</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">' + (r.der != null ? r.der.toFixed(2) + 'x' : '—') + '</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">' + (r.dividendYield != null ? r.dividendYield.toFixed(1) + '%' : '—') + '</td>';
+      html += '<td style="padding:8px 10px;text-align:center"><span class="badge b-amb" style="font-size:10px">' + numRows + ' Thn</span></td>';
+      html += '<td style="padding:8px 10px;color:var(--text3);font-size:11px">' + dateStr + '</td>';
+      html += '<td style="padding:8px 10px;text-align:center;display:flex;gap:4px;justify-content:center">';
+      html += '<button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.loadFundamentalToForm(\'' + tk + '\')" title="Muat / Edit"><i class="ti ti-edit"></i> Edit</button>';
+      html += '<button type="button" class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="MW_SETTINGS.handleDeleteFundamental(\'' + tk + '\')" title="Hapus"><i class="ti ti-trash"></i></button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    box.innerHTML = html;
   }
 
   // EVENT HANDLERS
@@ -926,7 +1424,16 @@
     exportJsonBackup: exportJsonBackup,
     handleFileImport: handleFileImport,
     confirmDataReset: confirmDataReset,
-    triggerRecalculate: triggerRecalculate
+    triggerRecalculate: triggerRecalculate,
+    renderFundamentalRows: renderFundamentalRows,
+    addFundamentalHistoryRow: addFundamentalHistoryRow,
+    removeFundamentalHistoryRow: removeFundamentalHistoryRow,
+    resetFundamentalForm: resetFundamentalForm,
+    loadFundamentalToForm: loadFundamentalToForm,
+    quickSelectFundamentalTicker: quickSelectFundamentalTicker,
+    handleSaveFundamental: handleSaveFundamental,
+    handleDeleteFundamental: handleDeleteFundamental,
+    renderFundamentalOverrideList: renderFundamentalOverrideList
   };
 
   // Aliases for Router Compatibility

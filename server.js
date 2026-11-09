@@ -63,7 +63,7 @@ import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEn
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { runAutonomousMarketCycle, loadAutonomousAccountState, isIdxMarketOpen } from './lib/engine/autonomous-runner.js';
 import { getHypothesisCatalog, saveHypothesisCatalog, evaluateHypothesisStatistically } from './lib/engine/hypothesis-lab.js';
-import { logAuthMismatchTelemetry, enforceIdentityStage2, verifySupabaseSession } from './lib/auth-verify.js';
+import { logAuthMismatchTelemetry, enforceIdentityStage2, verifySupabaseSession, verifySupabaseToken, isStage2Enforced, claimedIdentityMatches } from './lib/auth-verify.js';
 import { getEconomicHealth, discoverBpsDatasets, getBpsStrategicIndicators } from './lib/economic-data-engine.js';
 import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
 
@@ -195,9 +195,10 @@ app.post('/api/user-data/save', async (req, res) => {
   // rationale (never trust a keyword match alone — read the code).
   logAuthMismatchTelemetry(req, uid, body.email, isDemo);
 
-  // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset); becomes
-  // a real 401/403 only once explicitly turned on after reviewing Stage 1's
-  // logs above in production. See lib/auth-*.js for the rollout rationale.
+  // Stage 2 — ON by default in production (SEC-02; local dev stays
+  // telemetry-only unless AUTH_ENFORCE_STAGE2=true). A missing/invalid
+  // session becomes 401, a mismatched identity 403, an unreachable auth
+  // backend 503. See lib/auth-verify.js.
   if (await enforceIdentityStage2(req, res, uid, body.email, isDemo)) return;
 
   const record = {
@@ -220,6 +221,11 @@ app.post('/api/user-data/save', async (req, res) => {
   // is — so this write is now best-effort/diagnostic only, and the
   // response honestly reports whether it actually landed on disk.
   let diskPersisted = false;
+  // SEC-05 (audit 2026-11-04): this used to carry the raw err.message, which
+  // leaked the absolute server path (repro: "EISDIR: illegal operation ...
+  // C:\...\data\user-stores\..."). Only a fixed, non-sensitive code goes
+  // back to the client; the full detail stays in the server log, same
+  // contract as every other route's publicErrorMessage().
   let diskError = null;
   try {
     const safeKey = getSafeFileKey(uid);
@@ -227,7 +233,8 @@ app.post('/api/user-data/save', async (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(record, null, 2), 'utf8');
     diskPersisted = true;
   } catch (err) {
-    diskError = err.message;
+    console.warn('[user-data/save] disk mirror write failed:', err && err.message);
+    diskError = 'MIRROR_WRITE_FAILED';
   }
 
   // Broadcast to other connected devices regardless of the disk write's
@@ -272,8 +279,8 @@ app.get('/api/user-data/load', async (req, res) => {
     const isDemoLoad = (uid === 'demo_guest_user' || uid === 'guest_user');
     logAuthMismatchTelemetry(req, uid, req.query.email, isDemoLoad);
 
-    // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset). See
-    // lib/auth-*.js for the rollout rationale.
+    // Stage 2 — ON by default in production (SEC-02; local dev stays
+    // telemetry-only unless AUTH_ENFORCE_STAGE2=true). See lib/auth-verify.js.
     if (await enforceIdentityStage2(req, res, uid, req.query.email, isDemoLoad)) return;
 
     // Demo/Guest account operates strictly in an isolated clean session with 0 initial positions
@@ -367,35 +374,53 @@ app.post('/api/user-data/clear', async (req, res) => {
     const isDemoClear = (uid === 'demo_guest_user' || uid === 'guest_user');
     logAuthMismatchTelemetry(req, uid, body.email || req.query.email, isDemoClear);
 
-    // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset). This
-    // is the highest-priority endpoint to eventually enforce on (it
-    // DELETES another user's data if uid is spoofed) — see lib/auth-*.js
-    // for the rollout rationale on why it isn't flipped on yet.
+    // Stage 2 — enforced by default in production (SEC-02; local dev only
+    // stays telemetry-only unless AUTH_ENFORCE_STAGE2=true). This is the
+    // highest-priority endpoint to enforce on: it DELETES another user's
+    // data if uid is spoofed. See lib/auth-*.js.
     if (await enforceIdentityStage2(req, res, uid, body.email || req.query.email, isDemoClear)) return;
 
     const safeKey = getSafeFileKey(uid);
     const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
 
+    // SEC-03 (audit 2026-11-04): the old loop matched SUBSTRINGS
+    // (`file.includes(safeKey)`), so uid="user" (or "a", "mail") matched
+    // every `user_<anyone>.json` and wiped other users' mirrors. Only the
+    // exact filenames this uid can own are ever deleted — never a substring
+    // match, never another user's file.
+    const exactFileNames = new Set([`user_${safeKey}.json`, `user_${altKey}.json`]);
     if (fs.existsSync(USER_STORES_DIR)) {
       const files = fs.readdirSync(USER_STORES_DIR);
       for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        if (file.includes(safeKey) || file.includes(altKey)) {
-          try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
-        }
+        if (!exactFileNames.has(file)) continue;
+        try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
       }
     }
 
-    // Always ensure latest_backup is removed when clearing
+    // latest_backup.json is a SHARED file, not a per-user one. The old code
+    // deleted it unconditionally, destroying the shared fallback for every
+    // user. Only remove it when its own record actually belongs to this uid;
+    // unreadable/unknown contents are left untouched (never delete something
+    // we cannot prove is ours).
     const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
     if (fs.existsSync(backupPath)) {
-      try { fs.unlinkSync(backupPath); } catch(e){}
+      try {
+        const backupRecord = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+        const backupUidNorm = String((backupRecord && backupRecord.uid) || '').toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+        const requestedUidNorm = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+        if (backupUidNorm && backupUidNorm === requestedUidNorm) {
+          fs.unlinkSync(backupPath);
+        }
+      } catch (e) {
+        // Shared file is unreadable/not the expected JSON: leave it alone.
+      }
     }
 
-    // Write an explicit empty record file so any fallback reads know transactions are 0
-    if (uid) {
-      const safeKey = getSafeFileKey(uid);
-      const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    // Write an explicit empty record file so any fallback reads know
+    // transactions are 0. EXACT key only — the old code also wrote the
+    // alternate key, which is a lossy normalization other uids can collide
+    // onto (SEC-04); the file for this uid's exact key is what /load reads.
+    {
       const emptyRecord = {
         uid: uid,
         savedAt: new Date().toISOString(),
@@ -421,7 +446,6 @@ app.post('/api/user-data/clear', async (req, res) => {
         }
       };
       try { fs.writeFileSync(path.join(USER_STORES_DIR, `user_${safeKey}.json`), JSON.stringify(emptyRecord, null, 2), 'utf8'); } catch(e){}
-      try { fs.writeFileSync(path.join(USER_STORES_DIR, `user_${altKey}.json`), JSON.stringify(emptyRecord, null, 2), 'utf8'); } catch(e){}
     }
 
     return res.json({
@@ -484,10 +508,68 @@ function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
 }
 
 // Server-Sent Events endpoint for multi-device realtime sync
-app.get('/api/sync/stream', (req, res) => {
+//
+// SEC-01 (audit 2026-11-04, P0): this route used to take `uid` from the
+// query string and attach the caller to that uid's broadcast bus with NO
+// verification at all — anyone who knew/guessed a victim's uid received
+// every portfolio snapshot that victim saved. Identity is now verified
+// BEFORE any SSE header is flushed or any client is registered in
+// syncClients; a rejected caller gets a plain JSON error (no event stream)
+// and never attaches.
+//
+// EventSource cannot set request headers, so the session token arrives as
+// `?token=` (client change in public/js/02-storage.js), while a standard
+// `Authorization: Bearer` header is still accepted for non-browser callers.
+// Same enforcement flag as the /api/user-data/* routes: ON by default in
+// production, telemetry-only in local dev (see isStage2Enforced()). Demo/
+// guest/no-uid callers keep the existing isolated stream and never touch
+// the sync bus.
+app.get('/api/sync/stream', async (req, res) => {
   const uid = (req.query.uid || req.query.email || '').trim();
   const deviceId = req.query.deviceId || req.headers['x-device-session-id'] || 'device_' + Math.random().toString(36).slice(2, 9);
   const clientId = 'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const isDemoOrGuest = !uid || uid === 'demo_guest_user' || uid === 'guest_user';
+
+  // --- SEC-01: verify identity BEFORE the first byte is sent -------------
+  if (!isDemoOrGuest && isStage2Enforced()) {
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+    const headerToken = /^Bearer\s+/i.test(authHeader) ? authHeader.replace(/^Bearer\s+/i, '').trim() : '';
+    const queryToken = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+    const token = headerToken || queryToken;
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi login tidak ditemukan. Silakan login ulang.',
+        code: 'AUTH_TOKEN_MISSING'
+      });
+    }
+    const verified = await verifySupabaseToken(token);
+    if (verified.transient) {
+      // Auth backend unreachable — fail closed with a retryable status, not
+      // a 401 that would wrongly tell a logged-in user their session died.
+      return res.status(503).json({
+        success: false,
+        error: 'Layanan verifikasi sesi sedang tidak tersedia. Coba lagi sebentar lagi.',
+        code: 'AUTH_VERIFICATION_UNAVAILABLE',
+        retryable: true
+      });
+    }
+    if (!verified.verified) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi login tidak valid atau sudah kedaluwarsa. Silakan login ulang.',
+        code: 'AUTH_TOKEN_INVALID'
+      });
+    }
+    if (!claimedIdentityMatches(uid, req.query.email, verified)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Identitas pada permintaan ini tidak cocok dengan sesi login yang aktif.',
+        code: 'AUTH_IDENTITY_MISMATCH'
+      });
+    }
+  }
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -496,7 +578,7 @@ app.get('/api/sync/stream', (req, res) => {
   res.flushHeaders && res.flushHeaders();
 
   // If unauthenticated or demo account, do not attach to multi-device sync listener
-  if (!uid || uid === 'demo_guest_user' || uid === 'guest_user') {
+  if (isDemoOrGuest) {
     res.write(`data: ${JSON.stringify({ type: 'CONNECTED', clientId, deviceId, mode: 'isolated_demo', timestamp: new Date().toISOString() })}\n\n`);
     const heartbeatTimer = setInterval(() => {
       try {
@@ -5334,10 +5416,79 @@ app.get('/api/ai/hypotheses', (req, res) => {
   }
 });
 
+// FAB-01 (audit 2026-11-04): the old POST handler accepted `returnSamples`
+// straight from the client — any caller could POST fabricated numbers and
+// have the SHARED catalog persist status ACCEPTED / "EDGE TERBUKTI" for every
+// user (evidence poisoning) — and its server-derived path mapped fields that
+// closed trades do not carry (`realizedPnLPct`/`returnPct`), silently turning
+// every sample into 0%. Samples now come ONLY from the real autonomous paper
+// account's closed trades: pct = realizedPnL (rupiah) / totalCost (rupiah) *
+// 100. Trades whose numbers cannot produce an honest percentage are skipped,
+// never defaulted to 0.
+function hypothesisReturnSamplesFromClosedTrades(closedTrades) {
+  const trades = Array.isArray(closedTrades) ? closedTrades : [];
+  const samples = [];
+  for (const t of trades) {
+    if (!t || typeof t !== 'object') continue;
+    const realizedPnL = Number(t.realizedPnL);
+    const totalCost = Number(t.totalCost);
+    if (!Number.isFinite(realizedPnL) || !Number.isFinite(totalCost) || totalCost <= 0) continue;
+    const pct = (realizedPnL / totalCost) * 100;
+    if (!Number.isFinite(pct)) continue;
+    samples.push(Number(pct.toFixed(4)));
+  }
+  return samples;
+}
+
 // POST /api/ai/hypotheses/test — menjalankan evaluasi statistik hipotesis kuantitatif berbasis data empiris riil
+//
+// FAB-01: this endpoint writes the shared hypothesis catalog, so it now
+// requires a verified Supabase session (demo/guest is not sufficient) — it
+// used to be completely unauthenticated. Client-supplied samples are
+// rejected outright (400 CLIENT_SAMPLES_NOT_ACCEPTED); the only sample
+// source is the autonomous account's real closed trades. A result that
+// cannot be computed honestly (DATA_INSUFFICIENT) is returned to the caller
+// but never persisted.
 app.post('/api/ai/hypotheses/test', aiRateLimiter, async (req, res) => {
   try {
-    const { hypothesisId, returnSamples, benchmarkReturnPct } = req.body || {};
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+    const headerToken = /^Bearer\s+/i.test(authHeader) ? authHeader.replace(/^Bearer\s+/i, '').trim() : '';
+    if (!headerToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi login diperlukan untuk menguji hipotesis.',
+        code: 'AUTH_TOKEN_MISSING'
+      });
+    }
+    const session = await verifySupabaseToken(headerToken);
+    if (session.transient) {
+      return res.status(503).json({
+        success: false,
+        error: 'Layanan verifikasi sesi sedang tidak tersedia. Coba lagi sebentar lagi.',
+        code: 'AUTH_VERIFICATION_UNAVAILABLE',
+        retryable: true
+      });
+    }
+    if (!session.verified) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi login tidak valid atau sudah kedaluwarsa. Silakan login ulang.',
+        code: 'AUTH_TOKEN_INVALID'
+      });
+    }
+
+    const body = req.body || {};
+    // Evidence poisoning guard (AGENTS.md Aturan #1 & #28): samples are
+    // measured server-side from real trades only, never supplied by a caller.
+    if (Object.prototype.hasOwnProperty.call(body, 'returnSamples')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Sampel return tidak boleh dikirim klien; evaluation memakai closed trade riil akun autonomous.',
+        code: 'CLIENT_SAMPLES_NOT_ACCEPTED'
+      });
+    }
+
+    const { hypothesisId, benchmarkReturnPct } = body;
     if (!hypothesisId) {
       return res.status(400).json({ success: false, error: 'hypothesisId wajib diberikan' });
     }
@@ -5348,24 +5499,41 @@ app.post('/api/ai/hypotheses/test', aiRateLimiter, async (req, res) => {
     }
 
     const hypo = catalog[idx];
-    let samples = Array.isArray(returnSamples) ? returnSamples : null;
+    const state = loadAutonomousAccountState();
+    const samples = hypothesisReturnSamplesFromClosedTrades(state && state.closedTrades);
 
-    // Jika returnSamples tidak dikirim oleh klien, ambil dari closed trades riil akun autonomous
-    if (!samples || samples.length < 10) {
-      const state = loadAutonomousAccountState();
-      const closed = Array.isArray(state.closedTrades) ? state.closedTrades : [];
-      if (closed.length >= 10) {
-        samples = closed.map(t => Number(t.realizedPnLPct || t.returnPct || 0));
-      }
+    // benchmarkReturnPct is the caller's market benchmark choice (not sample
+    // data), but an absurd value could still force a fake "EDGE TERBUKTI"
+    // verdict through meanExcessReturnPct — bound it to a sane return range.
+    const benchmark = benchmarkReturnPct == null || benchmarkReturnPct === '' ? 0 : Number(benchmarkReturnPct);
+    if (!Number.isFinite(benchmark) || benchmark < -100 || benchmark > 100) {
+      return res.status(400).json({ success: false, error: 'benchmarkReturnPct harus angka antara -100 dan 100', code: 'INVALID_BENCHMARK_RETURN' });
     }
 
-    // AGENTS.md Aturan #1 & #28: Larangan keras memakai data sintetis/karangan.
-    // Jika sampel empiris riil < 10, laporkan status DATA_INSUFFICIENT secara jujur.
-    const evaluated = evaluateHypothesisStatistically(hypo, samples, benchmarkReturnPct || 0.0);
+    const evaluated = evaluateHypothesisStatistically(hypo, samples, benchmark);
+
+    // AGENTS.md Aturan #1 & #28: if the real sample count is < 10, report
+    // DATA_INSUFFICIENT honestly and do NOT overwrite the shared catalog
+    // with it (the old code persisted it unconditionally).
+    if (evaluated.status === 'DATA_INSUFFICIENT') {
+      return res.json({
+        success: true,
+        hypothesis: evaluated,
+        persisted: false,
+        sampleSource: 'autonomous_closed_trades',
+        reason: 'DATA_INSUFFICIENT'
+      });
+    }
+
     catalog[idx] = evaluated;
     saveHypothesisCatalog(catalog);
 
-    return res.json({ success: true, hypothesis: evaluated });
+    return res.json({
+      success: true,
+      hypothesis: evaluated,
+      persisted: true,
+      sampleSource: 'autonomous_closed_trades'
+    });
   } catch (err) {
     console.error('[Hypothesis Test Error]', err);
     return res.status(500).json({ success: false, error: publicErrorMessage(err) });
