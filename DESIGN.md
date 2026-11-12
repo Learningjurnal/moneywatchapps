@@ -1,4 +1,4 @@
-# DESIGN.md — MoneyWatch Pro Design System v7.0
+  # DESIGN.md — MoneyWatch Pro Design System v7.0
 > **Institutional Precision, Quiet Elegance, and Quantitative Clarity**  
 > *Versi 7.0 — Diperbarui 2026-11-09*
 
