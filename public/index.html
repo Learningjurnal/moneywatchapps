@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark" data-accent="blue">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -178,8 +178,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20261005c">
+<link rel="stylesheet" href="css/arc-foundation.css">
+<link rel="stylesheet" href="css/main.css?v=20261112a">
 <link rel="stylesheet" href="css/wealth.css?v=20261005a">
+<link rel="stylesheet" href="css/arc-bridge.css?v=20261112a">
 </head>
 <body>
 
@@ -539,7 +541,7 @@
   <!-- Telemetry Footer -->
   <div class="lp-telemetry-bar lp-telemetry-bottom">
     <div class="lp-telemetry-item">
-      <span>MONEYWATCH PRO v6.2</span>
+      <span>MONEYWATCH PRO v7.0</span>
     </div>
     <div class="lp-telemetry-item">
       <span>REGIME DETECTION: ACTIVE</span>
@@ -560,8 +562,8 @@
       <div class="auth-brand-top">
         <div class="auth-brand-logo-row">
           <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="30" style="width:auto;display:block">
-          <div class="auth-logo">Money<span style="color:#2962ff">Watch</span></div>
-          <span class="auth-brand-badge">PRO v6.2</span>
+          <div class="auth-logo">Money<span style="color:var(--accent,#3B82F6)">Watch</span></div>
+          <span class="auth-brand-badge">PRO v7.0</span>
         </div>
         <div class="auth-brand-headline">Intelijen Pasar &amp; Bandarmology Presisi Tinggi</div>
         <div class="auth-brand-desc">
@@ -573,11 +575,11 @@
           <div class="auth-telemetry-example-tag">Contoh tampilan, bukan data real-time</div>
           <div class="auth-telemetry-header">
             <span style="color:#FFFFFF;font-weight:700">BBCA · Bank Central Asia</span>
-            <span style="color:#089981;background:rgba(8,153,129,0.15);padding:1px 6px;border-radius:3px">+1.8%</span>
+            <span style="color:var(--green,#10B981);background:rgba(16,185,129,0.12);padding:2px 7px;border-radius:4px;font-weight:700">+1.8%</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#94A3B8;font-family:var(--font-mono, monospace)">
-            <span>Smart Money: <strong style="color:#2962ff">Akumulasi Besar (72.4%)</strong></span>
-            <span>MoS: <strong style="color:#089981">+9.3%</strong></span>
+            <span>Smart Money: <strong style="color:var(--accent,#3B82F6)">Akumulasi Besar (72.4%)</strong></span>
+            <span>MoS: <strong style="color:var(--green,#10B981)">+9.3%</strong></span>
           </div>
         </div>
 
@@ -640,8 +642,8 @@
         <button class="auth-btn" id="auth-login-btn" onclick="authDoLogin()">Masuk ke Terminal</button>
         <div class="auth-info">
           Sesi terenkripsi aman · Auto-logout jika inaktif 60 menit<br>
-          Lupa password? <span style="color:#2962ff;cursor:pointer;font-weight:600" onclick="authShowReset()">Reset via kode</span>
-          · <span style="color:#2962ff;cursor:pointer;font-weight:600" onclick="authShowSetup('Buat akun baru')">Buat Akun Baru</span>
+          Lupa password? <span style="color:var(--accent,#3B82F6);cursor:pointer;font-weight:600" onclick="authShowReset()">Reset via kode</span>
+          · <span style="color:var(--accent,#3B82F6);cursor:pointer;font-weight:600" onclick="authShowSetup('Buat akun baru')">Buat Akun Baru</span>
         </div>
       </div>
 
@@ -672,7 +674,7 @@
           </div>
         </div>
         <button class="auth-btn" onclick="authDoSetup()">Buat Akun &amp; Masuk</button>
-        <div class="auth-info" id="auth-setup-back" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
+        <div class="auth-info" id="auth-setup-back" style="cursor:pointer;color:var(--accent,#3B82F6);margin-top:12px;font-weight:500" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
 
       <!-- Reset form -->
@@ -688,7 +690,7 @@
           </div>
         </div>
         <button class="auth-btn" onclick="authDoReset()">Verifikasi &amp; Lanjutkan</button>
-        <div class="auth-info" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
+        <div class="auth-info" style="cursor:pointer;color:var(--accent,#3B82F6);margin-top:12px;font-weight:500" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
     </div>
   </div>

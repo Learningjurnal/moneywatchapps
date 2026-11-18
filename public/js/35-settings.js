@@ -188,32 +188,29 @@
 
       <!-- TAB NAVIGASI KATEGORI SETTINGS (Pilih Form yang Ingin Diatur) -->
       <div style="background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <div style="font-size:12px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px">
-          <i class="ti ti-adjustments-horizontal" style="color:var(--accent)"></i> PILIH PENGATURAN:
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          <button type="button" class="btn btn-primary btn-sm settings-nav-tab" data-tab="fundamental" onclick="MW_SETTINGS.switchSettingsTab('fundamental')" style="font-weight:700">
-            <i class="ti ti-database-cog"></i> 1. Data Fundamental
+        <nav class="settings-tabs-bar" role="tablist" aria-label="Kategori Pengaturan">
+          <button type="button" class="settings-tab-btn active" data-tab="fundamental" onclick="MW_SETTINGS.switchSettingsTab('fundamental')" role="tab">
+            <i class="ti ti-database-cog"></i> Data Fundamental
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="tax" onclick="MW_SETTINGS.switchSettingsTab('tax')">
-            <i class="ti ti-receipt-tax"></i> 2. Pajak &amp; Sekuritas
+          <button type="button" class="settings-tab-btn" data-tab="tax" onclick="MW_SETTINGS.switchSettingsTab('tax')" role="tab">
+            <i class="ti ti-receipt-tax"></i> Pajak &amp; Sekuritas
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="fire" onclick="MW_SETTINGS.switchSettingsTab('fire')">
-            <i class="ti ti-flame"></i> 3. Sasaran FIRE
+          <button type="button" class="settings-tab-btn" data-tab="fire" onclick="MW_SETTINGS.switchSettingsTab('fire')" role="tab">
+            <i class="ti ti-flame"></i> Sasaran FIRE
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="wealth" onclick="MW_SETTINGS.switchSettingsTab('wealth')">
-            <i class="ti ti-building-bank"></i> 4. Bank &amp; Liabilitas
+          <button type="button" class="settings-tab-btn" data-tab="wealth" onclick="MW_SETTINGS.switchSettingsTab('wealth')" role="tab">
+            <i class="ti ti-building-bank"></i> Bank &amp; Liabilitas
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="system" onclick="MW_SETTINGS.switchSettingsTab('system')">
-            <i class="ti ti-settings"></i> 5. Tampilan &amp; Backup
+          <button type="button" class="settings-tab-btn" data-tab="system" onclick="MW_SETTINGS.switchSettingsTab('system')" role="tab">
+            <i class="ti ti-settings"></i> Tampilan &amp; Backup
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="telemetry" onclick="MW_SETTINGS.switchSettingsTab('telemetry')">
-            <i class="ti ti-activity"></i> 6. Kuota &amp; Telemetri
+          <button type="button" class="settings-tab-btn" data-tab="telemetry" onclick="MW_SETTINGS.switchSettingsTab('telemetry')" role="tab">
+            <i class="ti ti-activity"></i> Kuota &amp; Telemetri
           </button>
-          <button type="button" class="btn btn-ghost btn-sm settings-nav-tab" data-tab="all" onclick="MW_SETTINGS.switchSettingsTab('all')">
-            <i class="ti ti-layout-grid"></i> Buka Semua
+          <button type="button" class="settings-tab-btn" data-tab="all" onclick="MW_SETTINGS.switchSettingsTab('all')" role="tab">
+            <i class="ti ti-layout-grid"></i> Semua
           </button>
-        </div>
+        </nav>
       </div>
 
       
@@ -974,14 +971,25 @@
       localStorage.setItem(SETTINGS_TAB_KEY, tabName);
     } catch(e) {}
 
-    var tabs = document.querySelectorAll('.settings-nav-tab');
+    var tabs = document.querySelectorAll('.settings-tab-btn, .settings-nav-tab');
     tabs.forEach(function(t) {
-      if (t.getAttribute('data-tab') === tabName) {
-        t.className = 'btn btn-primary btn-sm settings-nav-tab';
-        t.style.fontWeight = '700';
+      var isTarget = t.getAttribute('data-tab') === tabName;
+      if (t.classList.contains('settings-tab-btn')) {
+        if (isTarget) {
+          t.classList.add('active');
+          t.setAttribute('aria-selected', 'true');
+        } else {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        }
       } else {
-        t.className = 'btn btn-ghost btn-sm settings-nav-tab';
-        t.style.fontWeight = 'normal';
+        if (isTarget) {
+          t.className = 'btn btn-primary btn-sm settings-nav-tab';
+          t.style.fontWeight = '700';
+        } else {
+          t.className = 'btn btn-ghost btn-sm settings-nav-tab';
+          t.style.fontWeight = 'normal';
+        }
       }
     });
 

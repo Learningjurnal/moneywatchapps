@@ -32,12 +32,12 @@
   --purple:#6366F1;
   --blue:#2563EB;
 
-  --cyan-electric:#38BDF8;
+  --cyan-electric:#3B82F6;
 
   --table-header-bg:#0E1322;
   --table-header-text:#8F9AA6;
 
-  --table-row-hover:rgba(56,189,248,0.045);
+  --table-row-hover:rgba(59,130,246,0.04);
 
   --radius-md:6px;
   --radius-lg:8px;
@@ -113,7 +113,7 @@ body.theme-light {
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:12.5px;overflow:hidden;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4,h5,h6{font-family:var(--font-display);letter-spacing:-0.02em}
 body{background:var(--bg)}
-body::before{content:'';position:fixed;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(37,99,235,.6) 40%,rgba(139,92,246,.5) 60%,transparent 100%);z-index:9999;pointer-events:none;display:block}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:1px;background:var(--accent,#3B82F6);opacity:.55;z-index:9999;pointer-events:none;display:block}
 body::after{display:none}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
