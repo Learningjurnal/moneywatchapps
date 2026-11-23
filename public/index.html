@@ -856,6 +856,7 @@
       <button onclick="goPage('dividen',this)"><i class="ti ti-cash"></i><span class="side-label">Dividend</span></button>
       <button onclick="goPage('rebalance',this)"><i class="ti ti-scale"></i><span class="side-label">Risk</span></button>
       <button onclick="goPage('performance',this)"><i class="ti ti-chart-histogram"></i><span class="side-label">Performance</span></button>
+      <button onclick="goPage('perf-monthly',this)"><i class="ti ti-calendar-stats"></i><span class="side-label">Performance Bulanan</span></button>
       <!-- FIX (2026-09-11, user-requested): renderThesisPage() /
            #page-thesis ("Investment Thesis Tracker" - dokumentasi
            alasan beli, target harga, kriteria invalidasi per saham) was
@@ -1703,6 +1704,40 @@
     </div>
     <div class="cw" style="height:210px"><canvas id="perfAnnualReturnChart"></canvas></div>
     <div id="perf-annual-return-table" style="margin-top:14px;overflow-x:auto"></div>
+  </div>
+
+  <!-- 5B. SECTION D2: PERFORMANCE PORTOFOLIO BULANAN -->
+  <div class="card" id="perf-monthly-section" style="margin-bottom:18px">
+    <div class="cheader">
+      <div>
+        <span class="ctitle">Performance Portofolio Bulanan</span>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Breakdown kinerja bulanan — Realized Capital Gain, Dividen, Net Setor Kas, Win Rate &amp; Matriks Heatmap Per Bulan</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="perf-monthly-year-filter" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px"></div>
+      </div>
+    </div>
+
+    <!-- Monthly Summary KPIs -->
+    <div class="row4" id="perf-monthly-kpis" style="margin-bottom:14px"></div>
+
+    <!-- Monthly Chart -->
+    <div class="cw" style="height:210px;margin-bottom:14px"><canvas id="perfMonthlyChart"></canvas></div>
+
+    <!-- Monthly Matrix / Heatmap Table -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+        <span>Matriks Return Bulanan (Jan – Des)</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:normal">Warna hijau = profit, merah = rugi, netral = nihil transaksi</span>
+      </div>
+      <div id="perf-monthly-matrix-wrap" style="overflow-x:auto"></div>
+    </div>
+
+    <!-- Detailed Monthly Table -->
+    <div style="border-top:1px solid var(--border-subtle);padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Tabel Rincian Kinerja Bulanan</div>
+      <div id="perf-monthly-table-wrap" style="overflow-x:auto"></div>
+    </div>
   </div>
 
   <!-- 6. SECTION E: KINERJA ASET LAIN (Multi-Asset Summary) -->

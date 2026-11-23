@@ -822,8 +822,7 @@
       <!-- ==================================================================== -->
       <!-- KATEGORI 6: KUOTA API & TELEMETRI (data-cat="telemetry") -->
       <!-- ==================================================================== -->
-      <div class="settings-cat-section settings-cat-grid" data-cat="telemetry" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px;display:none">
-        <div class="settings-cat-section settings-cat-grid" data-cat="telemetry" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
+      <div class="settings-cat-section settings-cat-grid" data-cat="telemetry" style="display:none;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
 
         <!-- 7. Invezgo Quota -->
         <div class="card" style="padding:18px">
@@ -967,13 +966,17 @@
   }
 
   function switchSettingsTab(tabName) {
+    var rawTab = tabName || 'fundamental';
+    var targetTab = (rawTab === 'bank' || rawTab === 'debt') ? 'wealth' :
+                    ((rawTab === 'vault' || rawTab === 'display') ? 'system' :
+                    (rawTab === 'integrations' ? 'telemetry' : rawTab));
     try {
-      localStorage.setItem(SETTINGS_TAB_KEY, tabName);
+      localStorage.setItem(SETTINGS_TAB_KEY, targetTab);
     } catch(e) {}
 
     var tabs = document.querySelectorAll('.settings-tab-btn, .settings-nav-tab');
     tabs.forEach(function(t) {
-      var isTarget = t.getAttribute('data-tab') === tabName;
+      var isTarget = t.getAttribute('data-tab') === targetTab;
       if (t.classList.contains('settings-tab-btn')) {
         if (isTarget) {
           t.classList.add('active');
@@ -996,7 +999,7 @@
     var sections = document.querySelectorAll('.settings-cat-section');
     sections.forEach(function(sec) {
       var cat = sec.getAttribute('data-cat');
-      var isTarget = (tabName === 'all' || cat === tabName);
+      var isTarget = (targetTab === 'all' || cat === targetTab);
       if (isTarget) {
         if (sec.classList.contains('settings-cat-grid')) {
           sec.style.display = 'grid';
@@ -1807,6 +1810,8 @@
     autoCalculateRatios: autoCalculateRatios,
     syncFromLatestHistoryRow: syncFromLatestHistoryRow,
     switchSettingsTab: switchSettingsTab,
+    setTab: switchSettingsTab,
+    switchTab: switchSettingsTab,
     toggleCardSection: toggleCardSection,
     toggleFundamentalSubSection: toggleFundamentalSubSection,
     switchFundamentalViewTab: switchFundamentalViewTab
