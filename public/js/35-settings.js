@@ -31,7 +31,8 @@
       monthlyExpense: 10000000,     // Rp 10 Juta / bulan
       emergencyFundTarget: 60000000,// Rp 60 Juta (6 bulan pengeluaran)
       expectedReturn: 12.0          // 12% p.a.
-    }
+    },
+    activeTab: 'tax'
   };
 
   var state = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -43,6 +44,7 @@
         var parsed = JSON.parse(raw);
         if (parsed.tax) Object.assign(state.tax, parsed.tax);
         if (parsed.fire) Object.assign(state.fire, parsed.fire);
+        if (parsed.activeTab) state.activeTab = parsed.activeTab;
       }
     } catch(e) {
       console.warn('MW_SETTINGS load error:', e);
@@ -122,10 +124,32 @@
     }
   }
 
+  // SETTINGS CATEGORIES CONFIGURATION
+  var SETTINGS_TABS = [
+    { id: 'tax', label: 'Pajak & Broker', icon: 'ti ti-receipt-tax', hint: 'Tarif Pajak, Komisi Broker Sekuritas & Preset Populer' },
+    { id: 'fire', label: 'FIRE & Sasaran', icon: 'ti ti-flame', hint: 'Target Dana FIRE, Pengeluaran Bulanan & Dana Darurat' },
+    { id: 'bank', label: 'Kas & Bank', icon: 'ti ti-building-bank', hint: 'Manajemen Rekening Multi-Bank & Kas Likuid' },
+    { id: 'debt', label: 'Hutang & Liabilitas', icon: 'ti ti-credit-card-off', hint: 'Daftar Kewajiban, Cicilan & Sisa Pokok Hutang' },
+    { id: 'vault', label: 'Cadangan & Cloud', icon: 'ti ti-cloud-lock', hint: 'Sinkronisasi Supabase Cloud, Ekspor CSV/PDF/JSON & Reset Data' },
+    { id: 'display', label: 'Tampilan & UI', icon: 'ti ti-palette', hint: 'Kerapatan Tabel, Skala Font (Zoom), Running Ticker & Mode Terminal' },
+    { id: 'integrations', label: 'API & Telemetri', icon: 'ti ti-plug', hint: 'Status Kuota Invezgo, Upload KSEI & Telemetri Data Quality Gate' },
+    { id: 'all', label: 'Semua Menu', icon: 'ti ti-layout-grid', hint: 'Tampilkan Seluruh Fitur Pengaturan Sekaligus' }
+  ];
+
+  function setTab(tabId) {
+    if (!tabId) return;
+    state.activeTab = tabId;
+    saveSettings();
+    renderSettingsPage(tabId);
+  }
+
   // RENDER FULL SETTINGS PAGE / PILLAR
-  function renderSettingsPage() {
+  function renderSettingsPage(tab) {
     var c = document.getElementById('page-settings');
     if (!c) return;
+
+    if (tab) state.activeTab = tab;
+    var currentTab = state.activeTab || 'tax';
 
     var wData = (typeof wCalc === 'function') ? wCalc() : { net: 0, aset: 0, bankTotal: 0, debt: { t: 0 } };
     var accounts = (typeof WEALTH !== 'undefined' && Array.isArray(WEALTH.bank)) ? WEALTH.bank : [];
@@ -141,54 +165,11 @@
     var emergencyProgressPct = Math.min(100, (wData.bankTotal / emergencyTarget * 100)).toFixed(1);
     var expReturn = state.fire.expectedReturn || 12.0;
 
-    var html = `
-      <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-        <div>
-          <div class="ptitle" style="display:flex;align-items:center;gap:8px">Pusat Pengaturan &amp; Konfigurasi Sistem
-          </div>
-          <div class="psub">
-            Kelola parameter pajak, komisi broker sekuritas, sasaran keuangan FIRE, rekening multi-bank, liabilitas, preferensi tampilan, dan cadangan data di satu tempat.
-          </div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
-            Ekspor Cadangan JSON
-          </button>
-          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
-            Impor JSON
-            <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">
-          </label>
-        </div>
-      </div>
+    var curTabObj = SETTINGS_TABS.find(function(t){ return t.id === currentTab; }) || SETTINGS_TABS[0];
 
-      <!-- Overview KPI Cards -->
-      <div class="row4" style="margin-bottom:20px">
-        <div class="metric">
-          <div class="mlabel">TOTAL NET WORTH</div>
-          <div class="mval" style="color:var(--accent)">Rp ${fmt(wData.net)}</div>
-          <div class="msub neu">Basis Akumulasi FIRE</div>
-        </div>
-        <div class="metric">
-          <div class="mlabel">PROGRES SASARAN FIRE</div>
-          <div class="mval ${Number(fireProgressPct)>=50?'up':'neu'}">${fireProgressPct}%</div>
-          <div class="msub neu">Target Rp ${fmt(fireTarget)}</div>
-        </div>
-        <div class="metric">
-          <div class="mlabel">REKENING BANK AKTIF</div>
-          <div class="mval up">${accounts.length} Akun</div>
-          <div class="msub neu">Total Saldo: Rp ${fmt(wData.bankTotal)}</div>
-        </div>
-        <div class="metric">
-          <div class="mlabel">SEKURITAS UTAMA</div>
-          <div class="mval" style="color:#f59e0b">${state.tax.activeSekuritas || 'Stockbit'}</div>
-          <div class="msub neu">Komisi Beli: ${(state.tax.buyFee*100).toFixed(2)}%</div>
-        </div>
-      </div>
-
-      <!-- GRID 1: Tax & Broker Fees + Financial Goals & FIRE -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
-        
-        <!-- 1. Dynamic Tax & Broker Fee Engine -->
+    // Card Builder: 1. Tax & Broker Fees
+    function renderCardTax() {
+      return `
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
@@ -281,8 +262,12 @@
             </div>
           </form>
         </div>
+      `;
+    }
 
-        <!-- 2. Financial Goals & FIRE Settings -->
+    // Card Builder: 2. Financial Goals & FIRE Settings
+    function renderCardFire() {
+      return `
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
@@ -337,12 +322,12 @@
             </button>
           </form>
         </div>
-      </div>
+      `;
+    }
 
-      <!-- GRID 2: Multi-Bank Accounts + Liabilities -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
-        
-        <!-- 3. Multi-Bank Accounts Management -->
+    // Card Builder: 3. Multi-Bank Accounts
+    function renderCardBank() {
+      return `
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
@@ -352,7 +337,7 @@
           </div>
 
           <!-- Existing Bank Accounts List -->
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:260px;overflow-y:auto">
             ${accounts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">Belum ada rekening bank yang dikonfigurasi.</div>' : ''}
             ${accounts.map(function(acc, idx) {
               return `
@@ -391,8 +376,12 @@
             </button>
           </form>
         </div>
+      `;
+    }
 
-        <!-- 4. Liabilities & Debts Management -->
+    // Card Builder: 4. Liabilities & Debts
+    function renderCardDebt() {
+      return `
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
@@ -402,7 +391,7 @@
           </div>
 
           <!-- Existing Debts List -->
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:260px;overflow-y:auto">
             ${debts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">Tidak ada kewajiban atau hutang aktif.</div>' : ''}
             ${debts.map(function(d, idx) {
               return `
@@ -440,64 +429,93 @@
             </button>
           </form>
         </div>
-      </div>
+      `;
+    }
 
-      <!-- GRID 3: Data Management & Display / UI Customization -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px">
-        
-        <!-- 5. Data Vault & Backup / Restore -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Cadangan Data, Pemulihan &amp; Database Cloud
+    // Card Builder: 5. Data Vault & Backup/Restore/Cloud
+    function renderCardVault() {
+      return `
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-cloud-lock" style="color:var(--accent)"></i> Cadangan Data, Pemulihan &amp; Database Cloud
             </div>
             <span class="badge b-up">Data Vault</span>
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:6px">
+            <!-- Supabase Cloud Sync Card -->
+            <div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
+                  Database Cloud Supabase
+                </div>
+                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof checkSupabaseLiveSyncStatus==='function')checkSupabaseLiveSyncStatus();" style="border-color:var(--accent);color:var(--accent);font-size:11px">
+                  Audit Sinkronisasi
+                </button>
+              </div>
+              <div style="font-size:11.5px;color:var(--text3);margin-bottom:10px">
+                Data transaksi saham, kas RDN, dan dividen tersinkron otomatis ke Supabase Cloud.
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-blue btn-sm" style="flex:1;justify-content:center;font-size:12px;font-weight:600" onclick="if(typeof migrateLocalDataToSupabaseCloud==='function')migrateLocalDataToSupabaseCloud(true).then(function(){ if(typeof checkSupabaseLiveSyncStatus==='function')checkSupabaseLiveSyncStatus(); });">
+                  Sinkronkan Sekarang
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:12px" onclick="if(typeof fireLoadAllData==='function')fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function')showSaveStatus('Data dimuat dari Cloud','var(--green)'); });">
+                  Muat Ulang dari Cloud
+                </button>
+              </div>
+            </div>
+
+            <!-- Consolidated Export -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:8px">
               <div>
-                <div style="font-weight:700;font-size:12.5px;color:#10b981">Ekspor Terkonsolidasi (Excel / CSV)</div>
-                <div style="font-size:11px;color:var(--text3)">Gabungkan seluruh hasil, saham, crypto, ETF, RD, kas, hutang, dan proyeksi FIRE.</div>
+                <div style="font-weight:700;font-size:13px;color:#10b981">Ekspor Terkonsolidasi (Excel / CSV)</div>
+                <div style="font-size:11px;color:var(--text3)">Gabungkan seluruh portofolio, kas, dividen, dan FIRE ke berkas CSV.</div>
               </div>
               <button type="button" class="btn btn-green btn-sm" style="background:#059669;color:#fff;border-color:#047857;font-weight:700" onclick="if(typeof exportConsolidatedPortfolioCsv==='function')exportConsolidatedPortfolioCsv();">
                 Ekspor CSV
               </button>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px">
+            <!-- PDF Reports -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px">
               <div>
-                <div style="font-weight:700;font-size:12.5px;color:#38bdf8">Pusat Laporan &amp; Dokumen PDF</div>
+                <div style="font-weight:700;font-size:13px;color:#38bdf8">Pusat Laporan &amp; Dokumen PDF</div>
                 <div style="font-size:11px;color:var(--text3)">Pratinjau dan cetak dokumen resmi Family Office A4.</div>
               </div>
               <button type="button" class="btn btn-blue btn-sm" style="font-weight:700" onclick="if(typeof mwOpenPdfReportModal==='function')mwOpenPdfReportModal('consolidated');">
-                Buka Pusat Laporan
+                Buka Laporan PDF
               </button>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
+            <!-- Master JSON Backup -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
               <div>
-                <div style="font-weight:700;font-size:12.5px;color:var(--text)">Ekspor Cadangan Master JSON</div>
-                <div style="font-size:11px;color:var(--text3)">Unduh berkas portofolio, mutasi kas RDN, dividen, dan rekening.</div>
+                <div style="font-weight:700;font-size:13px;color:var(--text)">Ekspor Cadangan Master JSON</div>
+                <div style="font-size:11px;color:var(--text3)">Unduh berkas portofolio, mutasi kas RDN, dividen, dan rekening lengkap.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
                 Ekspor JSON
               </button>
             </div>
 
-            <div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
-              <div style="font-weight:700;font-size:12.5px;color:var(--text);margin-bottom:2px">Pulihkan Data dari JSON</div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch.</div>
+            <!-- Restore JSON Backup -->
+            <div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
+              <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:2px">Pulihkan Data dari JSON</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch untuk memulihkan seluruh data.</div>
               <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer">
                 Pilih Berkas JSON untuk Dipulihkan...
                 <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">
               </label>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:6px">
+            <!-- Danger: Reset Data -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px">
               <div>
-                <div style="font-weight:700;font-size:12.5px;color:var(--red)">Reset Data Transaksi (0 Transaksi)</div>
-                <div style="font-size:11px;color:var(--text3)">Kosongkan seluruh riwayat portofolio &amp; transaksi di Supabase Cloud dan perangkat lokal.</div>
+                <div style="font-weight:700;font-size:13px;color:var(--red)">Reset Data Transaksi (0 Transaksi)</div>
+                <div style="font-size:11px;color:var(--text3)">Kosongkan seluruh riwayat portofolio &amp; transaksi di Supabase Cloud dan lokal.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="MW_SETTINGS.confirmDataReset()">
                 Reset Data
@@ -505,98 +523,224 @@
             </div>
           </div>
         </div>
+      `;
+    }
 
-        <!-- 6. Display, Font Scaling & Terminal Density -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Tampilan, Kerapatan &amp; Skala Antarmuka
+    // Card Builder: 6. Display, UI & Feed Preferences
+    function renderCardDisplay() {
+      var curDens = typeof mwGetTableDensity === 'function' ? mwGetTableDensity() : 'standard';
+      var isExec = typeof mwViewMode !== 'undefined' && mwViewMode === 'executive';
+      return `
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-palette" style="color:var(--accent)"></i> Tampilan, Kerapatan &amp; Skala Antarmuka
             </div>
             <span class="badge b-up">UI Control</span>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div>
-              <div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px">Kerapatan Tabel Data (Density):</div>
-              <div style="display:flex;gap:6px">
-                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof setViewDensity==='function')setViewDensity('compact');">Compact (Rapat)</button>
-                <button type="button" class="btn btn-primary btn-xs" onclick="if(typeof setViewDensity==='function')setViewDensity('comfortable');">Comfortable (Nyaman)</button>
-                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof setViewDensity==='function')setViewDensity('executive');">Executive (Luas)</button>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <!-- Table Density -->
+            <div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
+              <div style="font-weight:600;font-size:12.5px;color:var(--text);margin-bottom:4px">Kerapatan Tabel Data (Density):</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Mengatur jarak vertikal baris tabel saham dan riwayat mutasi kas.</div>
+              <div style="display:flex;gap:8px">
+                <button type="button" class="btn ${curDens==='compact'?'btn-primary':'btn-ghost'} btn-xs" style="flex:1;justify-content:center" onclick="if(typeof setViewDensity==='function')setViewDensity('compact'); if(typeof mwSetTableDensity==='function')mwSetTableDensity('compact'); renderSettingsPage('display');">Compact (Rapat)</button>
+                <button type="button" class="btn ${curDens==='standard'||curDens==='comfortable'?'btn-primary':'btn-ghost'} btn-xs" style="flex:1;justify-content:center" onclick="if(typeof setViewDensity==='function')setViewDensity('comfortable'); if(typeof mwSetTableDensity==='function')mwSetTableDensity('standard'); renderSettingsPage('display');">Comfortable (Nyaman)</button>
+                <button type="button" class="btn ${curDens==='executive'||curDens==='pro'?'btn-primary':'btn-ghost'} btn-xs" style="flex:1;justify-content:center" onclick="if(typeof setViewDensity==='function')setViewDensity('executive'); if(typeof mwSetTableDensity==='function')mwSetTableDensity('pro'); renderSettingsPage('display');">Executive (Luas)</button>
               </div>
             </div>
 
-            <div>
-              <div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px">Skala Ukuran Tampilan (Zoom):</div>
-              <div style="display:flex;gap:6px">
-                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof mwZoom==='function')mwZoom(-0.05)">A−</button>
-                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof mwZoom==='function')mwZoom(0)">100%</button>
-                <button type="button" class="btn btn-ghost btn-xs" onclick="if(typeof mwZoom==='function')mwZoom(0.05)">A+</button>
+            <!-- Font Zoom Scale -->
+            <div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
+              <div style="font-weight:600;font-size:12.5px;color:var(--text);margin-bottom:4px">Skala Ukuran Tampilan (Zoom):</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Perbesar atau perkecil rasio elemen antarmuka aplikasi.</div>
+              <div style="display:flex;gap:8px">
+                <button type="button" class="btn btn-ghost btn-xs" style="flex:1;justify-content:center;font-weight:700" onclick="if(typeof mwZoom==='function')mwZoom(-0.05)">A−</button>
+                <button type="button" class="btn btn-ghost btn-xs" style="flex:1;justify-content:center;font-weight:700" onclick="if(typeof mwZoom==='function')mwZoom(0)">100% (Reset)</button>
+                <button type="button" class="btn btn-ghost btn-xs" style="flex:1;justify-content:center;font-weight:700" onclick="if(typeof mwZoom==='function')mwZoom(0.05)">A+</button>
               </div>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
+            <!-- Terminal Work Mode -->
+            <div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
+              <div style="font-weight:600;font-size:12.5px;color:var(--text);margin-bottom:4px">Mode Kerja Terminal:</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Pilih antara tampilan analisis komprehensif atau ringkas.</div>
+              <div style="display:flex;gap:8px">
+                <button type="button" class="btn ${!isExec?'btn-primary':'btn-ghost'} btn-xs" style="flex:1;justify-content:center" onclick="if(typeof mwSetViewMode==='function')mwSetViewMode('pro'); renderSettingsPage('display');">PRO Terminal</button>
+                <button type="button" class="btn ${isExec?'btn-primary':'btn-ghost'} btn-xs" style="flex:1;justify-content:center" onclick="if(typeof mwSetViewMode==='function')mwSetViewMode('executive'); renderSettingsPage('display');">Executive</button>
+              </div>
+            </div>
+
+            <!-- Running Ticker Tape Toggle -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">
               <div>
-                <div style="font-weight:600;font-size:12px;color:var(--text)">Running Ticker Tape BEI</div>
-                <div style="font-size:11px;color:var(--text3)">Pita harga berjalan di bawah topbar</div>
+                <div style="font-weight:600;font-size:12.5px;color:var(--text)">Running Ticker Tape BEI</div>
+                <div style="font-size:11px;color:var(--text3)">Pita harga berjalan real-time di bawah topbar</div>
               </div>
-              <button type="button" class="btn btn-ghost btn-xs" onclick="var tw=el('ticker-wrap'); if(tw){ tw.style.display = tw.style.display==='none'?'flex':'none'; showSaveStatus('Pengaturan ticker diperbarui'); }">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="var tw=document.getElementById('ticker-wrap'); if(tw){ tw.style.display = tw.style.display==='none'?'flex':'none'; if(typeof showSaveStatus==='function')showSaveStatus('Pengaturan ticker diperbarui'); }">
                 Alihkan Ticker
               </button>
             </div>
           </div>
         </div>
+      `;
+    }
 
-        <!-- 7. KSEI Ownership & Free Float shortcut -->
-        <div class="card" style="padding:18px">
+    // Card Builder: 7. API Quotas & Telemetry
+    function renderCardIntegrations() {
+      return `
+        <!-- Invezgo Quota -->
+        <div class="card" style="padding:20px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Struktur Kepemilikan &amp; Free Float (KSEI)
+            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px">
+              <i class="ti ti-activity" style="color:var(--accent)"></i> Kuota Invezgo (Bandarmology)
             </div>
-            <span class="badge b-up">Upload Excel</span>
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="font-size:11.5px;color:var(--text2);line-height:1.6">
-              Update data Kepemilikan &gt;5% &amp; Free Float dari file Excel IDX (2 file mentah, atau 1 file template) tanpa perlu buka halaman saham dulu.
-            </div>
-            <button type="button" class="btn btn-primary btn-sm" style="width:100%;justify-content:center" onclick="if(typeof openKseiModal==='function')openKseiModal();if(typeof kseiSwitchTab==='function')kseiSwitchTab('sync-settings');">
-              Buka KSEI Explorer &amp; Upload Data
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- GRID 4: API Quota Monitor (Invezgo) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
-
-        <!-- 7. Invezgo Quota -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text)">Kuota Invezgo (Bandarmology)</div>
             <span class="badge b-up">Real-time</span>
           </div>
           <div id="quota-invezgo-box" style="font-size:12px;color:var(--text3)">Memuat data kuota…</div>
         </div>
 
-        <!-- 8. Data Quality Gate Telemetry — jawaban praktis atas komentar
-             DATA_QUALITY_ENFORCE_STAGE2 di .env.example/idx-data-engine.js:
-             "only set to true after observing how often non-REAL status
-             actually occurs in production". Sebelumnya tidak ada cara
-             mengamati itu — kartu ini yang jadi caranya. -->
-        <div class="card" style="padding:18px">
+        <!-- Data Quality Gate Telemetry -->
+        <div class="card" style="padding:20px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text)">Data Quality Gate (Sinyal AI Trading)</div>
+            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px">
+              <i class="ti ti-shield-check" style="color:var(--green)"></i> Data Quality Gate (AI Trading)
+            </div>
             <span class="badge b-up">Hari ini</span>
           </div>
           <div id="quota-dq-box" style="font-size:12px;color:var(--text3)">Memuat telemetri…</div>
         </div>
 
+        <!-- KSEI Ownership & Free Float shortcut -->
+        <div class="card" style="padding:20px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
+            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px">
+              <i class="ti ti-file-spreadsheet" style="color:#10b981"></i> Struktur Kepemilikan &amp; Free Float (KSEI)
+            </div>
+            <span class="badge b-up">Excel Sync</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:12px">
+            Perbarui data Kepemilikan Saham &gt;5% dan Rasio Free Float resmi IDX dari file Excel KSEI.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="if(typeof openKseiModal==='function')openKseiModal();if(typeof kseiSwitchTab==='function')kseiSwitchTab('sync-settings');">
+              Buka KSEI Explorer &amp; Upload
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="if(typeof rdLoadUniverse==='function'){ rdLoadUniverse(true); if(typeof showSaveStatus==='function')showSaveStatus('Cache harga diperbarui','var(--green)'); }">
+              Refresh Feed Saham
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Determine category content to render
+    var categoryContent = '';
+    if (currentTab === 'tax') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardTax()}</div>`;
+    } else if (currentTab === 'fire') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardFire()}</div>`;
+    } else if (currentTab === 'bank') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardBank()}</div>`;
+    } else if (currentTab === 'debt') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardDebt()}</div>`;
+    } else if (currentTab === 'vault') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardVault()}</div>`;
+    } else if (currentTab === 'display') {
+      categoryContent = `<div style="max-width:860px;margin:0 auto">${renderCardDisplay()}</div>`;
+    } else if (currentTab === 'integrations') {
+      categoryContent = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px">${renderCardIntegrations()}</div>`;
+    } else {
+      // 'all'
+      categoryContent = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
+          ${renderCardTax()}
+          ${renderCardFire()}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
+          ${renderCardBank()}
+          ${renderCardDebt()}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
+          ${renderCardVault()}
+          ${renderCardDisplay()}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px">
+          ${renderCardIntegrations()}
+        </div>
+      `;
+    }
+
+    var html = `
+      <!-- Page Header -->
+      <div style="margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="ptitle" style="display:flex;align-items:center;gap:8px">
+            Pusat Pengaturan &amp; Konfigurasi Sistem
+          </div>
+          <div class="psub">
+            ${curTabObj ? curTabObj.hint : 'Kelola seluruh parameter sistem MoneyWatch Pro secara terpusat.'}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
+            Ekspor Cadangan JSON
+          </button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+            Impor JSON
+            <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">
+          </label>
+        </div>
+      </div>
+
+      <!-- Overview KPI Ribbon -->
+      <div class="row4" style="margin-bottom:18px">
+        <div class="metric">
+          <div class="mlabel">TOTAL NET WORTH</div>
+          <div class="mval" style="color:var(--accent)">Rp ${fmt(wData.net)}</div>
+          <div class="msub neu">Basis Akumulasi FIRE</div>
+        </div>
+        <div class="metric">
+          <div class="mlabel">PROGRES SASARAN FIRE</div>
+          <div class="mval ${Number(fireProgressPct)>=50?'up':'neu'}">${fireProgressPct}%</div>
+          <div class="msub neu">Target Rp ${fmt(fireTarget)}</div>
+        </div>
+        <div class="metric">
+          <div class="mlabel">REKENING BANK AKTIF</div>
+          <div class="mval up">${accounts.length} Akun</div>
+          <div class="msub neu">Total Saldo: Rp ${fmt(wData.bankTotal)}</div>
+        </div>
+        <div class="metric">
+          <div class="mlabel">SEKURITAS UTAMA</div>
+          <div class="mval" style="color:#f59e0b">${state.tax.activeSekuritas || 'Stockbit'}</div>
+          <div class="msub neu">Komisi Beli: ${(state.tax.buyFee*100).toFixed(2)}%</div>
+        </div>
+      </div>
+
+      <!-- CATEGORY TABS NAVIGATION -->
+      <div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
+        ${SETTINGS_TABS.map(function(t) {
+          var isAct = (currentTab === t.id);
+          return `
+            <button type="button" class="btn btn-sm ${isAct ? 'btn-primary' : 'btn-ghost'}" style="font-size:12px;font-weight:${isAct ? '700' : '600'};gap:6px;display:inline-flex;align-items:center;border-radius:8px;padding:7px 14px;${isAct ? 'box-shadow:0 2px 8px rgba(0,0,0,0.15);' : ''}" onclick="MW_SETTINGS.setTab('${t.id}')">
+              <i class="${t.icon}" style="${isAct ? 'color:#fff' : 'color:var(--accent)'}"></i>
+              <span>${t.label}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- ACTIVE CATEGORY CONTENT AREA -->
+      <div id="settings-tab-content-area" style="margin-bottom:24px">
+        ${categoryContent}
       </div>
     `;
 
     c.innerHTML = html;
-    loadApiQuotaWidgets();
+    if (currentTab === 'integrations' || currentTab === 'all') {
+      loadApiQuotaWidgets();
+    }
   }
 
   // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status). The Gemini
@@ -724,14 +868,14 @@
     if (typeof showSaveStatus === 'function') {
       showSaveStatus('Tarif Pajak & Komisi Broker berhasil disimpan & data direkalkulasi');
     }
-    renderSettingsPage();
+    renderSettingsPage(state.activeTab || 'tax');
   }
 
   function triggerRecalculate() {
     if (typeof recalculateAllStoredData === 'function') {
       recalculateAllStoredData(false);
     }
-    renderSettingsPage();
+    renderSettingsPage(state.activeTab || 'tax');
   }
 
   function handleSaveFireSettings(e) {
@@ -752,7 +896,7 @@
     if (typeof showSaveStatus === 'function') {
       showSaveStatus('Sasaran Keuangan & Parameter FIRE berhasil disimpan');
     }
-    renderSettingsPage();
+    renderSettingsPage(state.activeTab || 'fire');
   }
 
   function handleAddBankAccount(e) {
@@ -777,7 +921,7 @@
     if (typeof showSaveStatus === 'function') {
       showSaveStatus('Rekening ' + name + ' berhasil ditambahkan');
     }
-    renderSettingsPage();
+    renderSettingsPage(state.activeTab || 'bank');
   }
 
   function deleteBankAccount(idx) {
@@ -791,7 +935,7 @@
       if (typeof showSaveStatus === 'function') {
         showSaveStatus('Rekening bank dihapus');
       }
-      renderSettingsPage();
+      renderSettingsPage(state.activeTab || 'bank');
     }
   }
 
@@ -818,7 +962,7 @@
     if (typeof showSaveStatus === 'function') {
       showSaveStatus('Pos liabilitas ' + name + ' ditambahkan');
     }
-    renderSettingsPage();
+    renderSettingsPage(state.activeTab || 'debt');
   }
 
   function deleteDebt(idx) {
@@ -832,7 +976,7 @@
       if (typeof showSaveStatus === 'function') {
         showSaveStatus('Pos liabilitas dihapus');
       }
-      renderSettingsPage();
+      renderSettingsPage(state.activeTab || 'debt');
     }
   }
 
@@ -878,7 +1022,7 @@
           saveSettings();
         }
         alert('Data berhasil dipulihkan!');
-        renderSettingsPage();
+        renderSettingsPage(state.activeTab || 'vault');
       } catch(err) {
         alert('Gagal memulihkan file: ' + err.message);
       }
@@ -900,11 +1044,11 @@
         await resetAllDatabaseAndTransactions();
       }
       alert('Berhasil! Seluruh transaksi dan saldo telah di-reset menjadi 0 di Supabase Cloud dan lokal.');
-      renderSettingsPage();
+      renderSettingsPage(state.activeTab || 'vault');
     } catch(err) {
       console.error('Reset error:', err);
       alert('Reset selesai: ' + (err.message || err));
-      renderSettingsPage();
+      renderSettingsPage(state.activeTab || 'vault');
     }
   }
 
@@ -915,6 +1059,8 @@
     getState: function() { return state; },
     loadSettings: loadSettings,
     saveSettings: saveSettings,
+    setTab: setTab,
+    switchTab: setTab,
     renderSettingsPage: renderSettingsPage,
     applyBrokerPreset: applyBrokerPreset,
     handleSaveTaxSettings: handleSaveTaxSettings,

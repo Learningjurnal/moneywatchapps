@@ -7,7 +7,7 @@
 // ada simulasi, kecuali dicatat jelas (lihat catatan benchmark IHSG).
 // ============================================================
 
-var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham', benchPeriod:'YTD' };
+var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham', benchPeriod:'YTD', monthlyYear:'ALL' };
 
 function renderPerformance(){
   if(typeof equitySnapshotToday==='function') equitySnapshotToday(); // jaga-jaga kalau user langsung buka halaman ini tanpa lewat Dashboard dulu
@@ -18,6 +18,7 @@ function renderPerformance(){
   perfRenderTradeSummary();
   perfRenderRealized();
   perfRenderAnnualReturn();
+  perfRenderMonthlyReturn();
   perfRenderDisposition();
   perfRenderActivity();
   perfRenderOtherAssets();
@@ -812,6 +813,300 @@ function perfRenderAnnualReturn(){
       + '</tbody></table>';
   }
 }
+
+// ── Performance Portofolio Bulanan — breakdown capital gain, dividen & matriks kalender ──
+function perfComputeMonthlyBreakdown(){
+  var byMonth = {};
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+  function ensure(m){
+    if(!byMonth[m]){
+      var yr = m.slice(0,4);
+      var mo = parseInt(m.slice(5,7), 10) || 1;
+      byMonth[m] = {
+        month: m,
+        year: yr,
+        monthNum: mo,
+        monthName: MONTH_NAMES[mo - 1] || m,
+        capitalGain: 0,
+        dividend: 0,
+        sellTrades: 0,
+        buyTrades: 0,
+        winTrades: 0,
+        lossTrades: 0,
+        netCashFlow: 0
+      };
+    }
+    return byMonth[m];
+  }
+
+  var metrics = (typeof calcChronologicalTxMetrics === 'function') ? calcChronologicalTxMetrics() : null;
+  var sorted = (transactions||[]).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  });
+
+  if(metrics){
+    sorted.forEach(function(tx){
+      var m = (tx.date||'').slice(0,7);
+      if(!m || m.length < 7) return;
+      var item = ensure(m);
+      if(tx.type === 'BUY'){
+        item.buyTrades++;
+      } else if(tx.type === 'SELL'){
+        item.sellTrades++;
+        var met = metrics[tx.id];
+        var pnl = (met && met.pnlNet !== null && isFinite(met.pnlNet)) ? met.pnlNet : ((tx.net || tx.gross || 0) - (tx.gross || 0));
+        item.capitalGain += pnl;
+        if(pnl > 0) item.winTrades++;
+        else if(pnl < 0) item.lossTrades++;
+      }
+    });
+  } else {
+    var pos = {};
+    sorted.forEach(function(tx){
+      var m = (tx.date||'').slice(0,7);
+      if(!m || m.length < 7) return;
+      var item = ensure(m);
+      if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
+      var p = pos[tx.ticker];
+      var txNet = tx.net || tx.gross || 0;
+      if(tx.type === 'BUY'){
+        item.buyTrades++;
+        p.lot += tx.lot;
+        p.cost += txNet;
+      } else if(tx.type === 'SELL' && p.lot > 0){
+        item.sellTrades++;
+        var avg = p.cost / (p.lot * 100);
+        var sold = tx.lot * 100;
+        var pnl = txNet - (avg * sold);
+        item.capitalGain += pnl;
+        if(pnl > 0) item.winTrades++;
+        else if(pnl < 0) item.lossTrades++;
+        p.lot -= tx.lot;
+        p.cost = Math.max(0, p.cost - (avg * sold));
+        if(p.lot <= 0) p.cost = 0;
+      }
+    });
+  }
+
+  (dividends||[]).forEach(function(d){
+    var m = (d.date||'').slice(0,7);
+    if(!m || m.length < 7) return;
+    var item = ensure(m);
+    item.dividend += (d.net || 0);
+  });
+
+  (rdnMutations||[]).forEach(function(r){
+    var m = (r.date||'').slice(0,7);
+    if(!m || m.length < 7) return;
+    var item = ensure(m);
+    if(r.type === 'SETOR' || r.type === 'TOPUP') item.netCashFlow += (r.amount || 0);
+    else if(r.type === 'TARIK' || r.type === 'WITHDRAW') item.netCashFlow -= (r.amount || 0);
+  });
+
+  return Object.keys(byMonth).sort().map(function(m){
+    var r = byMonth[m];
+    r.capitalGain = Math.round(r.capitalGain);
+    r.dividend = Math.round(r.dividend);
+    r.totalReturn = r.capitalGain + r.dividend;
+    r.winRate = r.sellTrades > 0 ? (r.winTrades / r.sellTrades * 100) : 0;
+    return r;
+  });
+}
+
+function perfSetMonthlyYear(yr, btn){
+  PERF_STATE.monthlyYear = yr || 'ALL';
+  var pbtns = document.querySelectorAll('#perf-monthly-year-filter .pbtn');
+  pbtns.forEach(function(b){ b.classList.remove('on'); });
+  if(btn) btn.classList.add('on');
+  perfRenderMonthlyReturn(yr);
+}
+
+function perfRenderMonthlyReturn(filterYear){
+  var allData = perfComputeMonthlyBreakdown();
+  var selYr = filterYear || PERF_STATE.monthlyYear || 'ALL';
+  kc('perfMonthly');
+  var cv = el('perfMonthlyChart');
+  var kpiBox = el('perf-monthly-kpis');
+  var matrixBox = el('perf-monthly-matrix-wrap');
+  var tblBox = el('perf-monthly-table-wrap');
+  var filterWrap = el('perf-monthly-year-filter');
+
+  var MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var currentYear = new Date().getFullYear().toString();
+  var uniqueYears = Array.from(new Set(allData.map(function(d){ return d.year; }))).sort().reverse();
+  if(!uniqueYears.length) uniqueYears = [currentYear];
+
+  // Render Year Filter buttons
+  if(filterWrap){
+    var filterHtml = '<button class="pbtn '+(selYr==='ALL'?'on':'')+'" onclick="perfSetMonthlyYear(\'ALL\',this)">Semua</button>';
+    uniqueYears.forEach(function(y){
+      filterHtml += '<button class="pbtn '+(selYr===y?'on':'')+'" onclick="perfSetMonthlyYear(\''+y+'\',this)">'+y+'</button>';
+    });
+    filterWrap.innerHTML = filterHtml;
+  }
+
+  if(!allData.length){
+    if(kpiBox) kpiBox.innerHTML = '';
+    if(matrixBox) matrixBox.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Belum ada data transaksi atau dividen bulanan.</div>';
+    if(tblBox) tblBox.innerHTML = '';
+    return;
+  }
+
+  // Filtered dataset for charts and KPIs
+  var filteredData = selYr === 'ALL' ? allData : allData.filter(function(d){ return d.year === selYr; });
+  if(!filteredData.length) filteredData = allData;
+
+  // Compute Monthly KPIs
+  var bestMonth = null, worstMonth = null;
+  var sumReturn = 0, positiveMonths = 0;
+  filteredData.forEach(function(d){
+    sumReturn += d.totalReturn;
+    if(d.totalReturn > 0) positiveMonths++;
+    if(!bestMonth || d.totalReturn > bestMonth.totalReturn) bestMonth = d;
+    if(!worstMonth || d.totalReturn < worstMonth.totalReturn) worstMonth = d;
+  });
+  var avgReturn = filteredData.length ? Math.round(sumReturn / filteredData.length) : 0;
+  var winMonthPct = filteredData.length ? Math.round((positiveMonths / filteredData.length) * 100) : 0;
+
+  if(kpiBox){
+    kpiBox.innerHTML = `
+      <div class="metric">
+        <div class="mlabel">Bulan Terbaik</div>
+        <div class="mval ${bestMonth && bestMonth.totalReturn>=0 ? 'up' : 'dn'}" style="font-size:15px">
+          ${bestMonth ? (bestMonth.totalReturn>=0?'+':'') + 'Rp ' + fmtK(bestMonth.totalReturn) : '—'}
+        </div>
+        <div class="msub neu">${bestMonth ? bestMonth.monthName + ' ' + bestMonth.year : '—'}</div>
+      </div>
+      <div class="metric">
+        <div class="mlabel">Bulan Terburuk</div>
+        <div class="mval ${worstMonth && worstMonth.totalReturn>=0 ? 'up' : 'dn'}" style="font-size:15px">
+          ${worstMonth ? (worstMonth.totalReturn>=0?'+':'') + 'Rp ' + fmtK(worstMonth.totalReturn) : '—'}
+        </div>
+        <div class="msub neu">${worstMonth ? worstMonth.monthName + ' ' + worstMonth.year : '—'}</div>
+      </div>
+      <div class="metric">
+        <div class="mlabel">Rata-rata Return Bulanan</div>
+        <div class="mval ${avgReturn>=0 ? 'up' : 'dn'}" style="font-size:15px">
+          ${(avgReturn>=0?'+':'') + 'Rp ' + fmtK(avgReturn)}
+        </div>
+        <div class="msub neu">${filteredData.length} bulan aktif</div>
+      </div>
+      <div class="metric">
+        <div class="mlabel">Bulan Profit (Win Rate)</div>
+        <div class="mval ${winMonthPct>=50 ? 'up' : 'neu'}" style="font-size:15px">
+          ${winMonthPct}%
+        </div>
+        <div class="msub neu">${positiveMonths} dari ${filteredData.length} bulan</div>
+      </div>
+    `;
+  }
+
+  // Monthly Stacked Chart
+  if(cv){
+    var txt = (typeof _chartTextColor==='function') ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
+    charts['perfMonthly'] = new Chart(cv, {
+      type: 'bar',
+      data: {
+        labels: filteredData.map(function(d){ return d.month; }),
+        datasets: [
+          { label: 'Capital Gain', data: filteredData.map(function(d){ return d.capitalGain; }), backgroundColor: 'rgba(65,243,167,.8)', borderRadius: 3, stack: 'm' },
+          { label: 'Dividen', data: filteredData.map(function(d){ return d.dividend; }), backgroundColor: 'rgba(47,106,243,.8)', borderRadius: 3, stack: 'm' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' }, boxWidth: 10 } },
+          tooltip: Object.assign({}, TT, {
+            callbacks: {
+              label: function(c){ return c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + 'Rp ' + fmtK(c.parsed.y); }
+            }
+          })
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' } }, grid: { display: false } },
+          y: { stacked: true, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' }, callback: function(v){ return fmtK(v); } }, grid: { color: GC } }
+        }
+      }
+    });
+  }
+
+  // Monthly Heatmap Matrix (Years x 12 Months)
+  if(matrixBox){
+    var matrixHtml = '<table class="terminal-tbl" style="width:100%;font-size:11px;border-collapse:collapse;text-align:center">'
+      + '<thead><tr><th style="text-align:left;width:60px">Tahun</th>';
+    MONTH_SHORT.forEach(function(m){ matrixHtml += '<th style="text-align:center;padding:6px 4px">' + m + '</th>'; });
+    matrixHtml += '<th style="text-align:right;padding:6px 8px">YTD Total</th></tr></thead><tbody>';
+
+    uniqueYears.forEach(function(yr){
+      var yrData = allData.filter(function(d){ return d.year === yr; });
+      var yrMap = {};
+      var ytdSum = 0;
+      yrData.forEach(function(d){ yrMap[d.monthNum] = d; ytdSum += d.totalReturn; });
+
+      matrixHtml += '<tr><td class="mono" style="font-weight:700;text-align:left;padding:6px 4px">'+yr+'</td>';
+      for(var mNum = 1; mNum <= 12; mNum++){
+        var entry = yrMap[mNum];
+        if(entry && (entry.capitalGain !== 0 || entry.dividend !== 0 || entry.sellTrades > 0)){
+          var ret = entry.totalReturn;
+          var bg = ret > 0 ? 'rgba(16,185,129,0.18)' : (ret < 0 ? 'rgba(239,68,68,0.18)' : 'var(--bg3)');
+          var color = ret > 0 ? 'var(--green)' : (ret < 0 ? 'var(--red)' : 'var(--text3)');
+          var tip = entry.monthName + ' ' + yr + ' | Realized: Rp ' + fmtK(entry.capitalGain) + ' | Dividen: Rp ' + fmtK(entry.dividend) + ' | Trades: ' + entry.sellTrades + ' | WR: ' + entry.winRate.toFixed(0) + '%';
+          matrixHtml += '<td style="padding:6px 2px;background:'+bg+';color:'+color+';font-family:var(--font-mono);font-size:10.5px;font-weight:700;border:1px solid var(--border-subtle)" title="'+tip+'">'
+            + (ret >= 0 ? '+' : '') + fmtK(ret) + '</td>';
+        } else {
+          matrixHtml += '<td style="padding:6px 2px;color:var(--text3);font-family:var(--font-mono);font-size:10px;background:var(--bg3);border:1px solid var(--border-subtle)">—</td>';
+        }
+      }
+      var ytdColor = ytdSum > 0 ? 'var(--green)' : (ytdSum < 0 ? 'var(--red)' : 'var(--text)');
+      matrixHtml += '<td class="mono" style="font-weight:700;text-align:right;padding:6px 8px;color:'+ytdColor+'">'
+        + (ytdSum >= 0 ? '+' : '') + 'Rp ' + fmtK(ytdSum) + '</td></tr>';
+    });
+    matrixHtml += '</tbody></table>';
+    matrixBox.innerHTML = matrixHtml;
+  }
+
+  // Detailed Table
+  if(tblBox){
+    var tblHtml = '<table class="terminal-tbl" style="width:100%;font-size:11px">'
+      + '<thead><tr>'
+      + '<th style="text-align:left;width:100px">Bulan</th>'
+      + '<th style="text-align:center;width:90px">Transaksi Jual</th>'
+      + '<th style="text-align:center;width:90px">Transaksi Beli</th>'
+      + '<th style="text-align:center;width:80px">Win Rate</th>'
+      + '<th style="text-align:right">Capital Gain</th>'
+      + '<th style="text-align:right">Dividen</th>'
+      + '<th style="text-align:right">Net Setor Kas</th>'
+      + '<th style="text-align:right;font-weight:700">Total Return Bulanan</th>'
+      + '</tr></thead><tbody>';
+
+    var displayRows = filteredData.slice().reverse();
+    displayRows.forEach(function(d){
+      var cgCls = d.capitalGain >= 0 ? 'up' : 'dn';
+      var totCls = d.totalReturn >= 0 ? 'up' : 'dn';
+      var cfCls = d.netCashFlow >= 0 ? 'up' : 'dn';
+      tblHtml += '<tr>'
+        + '<td class="mono" style="font-weight:700;text-align:left">'+d.monthName+' '+d.year+'</td>'
+        + '<td style="text-align:center" class="mono">'+d.sellTrades+' order '+(d.sellTrades>0?'<span style="font-size:9.5px;color:var(--text3)">('+d.winTrades+'W/'+d.lossTrades+'L)</span>':'')+'</td>'
+        + '<td style="text-align:center" class="mono">'+d.buyTrades+' order</td>'
+        + '<td style="text-align:center" class="mono '+(d.winRate>=50?'up':'neu')+'">'+(d.sellTrades>0 ? d.winRate.toFixed(0)+'%' : '—')+'</td>'
+        + '<td class="mono '+cgCls+'" style="text-align:right">'+(d.capitalGain>=0?'+':'')+'Rp '+fmtK(d.capitalGain)+'</td>'
+        + '<td class="mono up" style="text-align:right">+Rp '+fmtK(d.dividend)+'</td>'
+        + '<td class="mono '+cfCls+'" style="text-align:right">'+(d.netCashFlow>=0?'+':'')+'Rp '+fmtK(d.netCashFlow)+'</td>'
+        + '<td class="mono '+totCls+'" style="text-align:right;font-weight:700">'+(d.totalReturn>=0?'+':'')+'Rp '+fmtK(d.totalReturn)+'</td>'
+        + '</tr>';
+    });
+    tblHtml += '</tbody></table>';
+    tblBox.innerHTML = tblHtml;
+  }
+}
+
+// Make accessible globally
+window.perfSetMonthlyYear = perfSetMonthlyYear;
+window.perfRenderMonthlyReturn = perfRenderMonthlyReturn;
+window.perfComputeMonthlyBreakdown = perfComputeMonthlyBreakdown;
 
 // ── Disposition Effect — rata-rata lama tahan saham UNTUNG vs RUGI.
 // "Tanggal buka posisi" = tanggal BUY pertama sejak lot ticker itu terakhir

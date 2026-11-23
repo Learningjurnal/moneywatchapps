@@ -796,10 +796,18 @@ function goPage(name,btn){
   // FIX (2026-10-10, user-directed consolidation): "Market Regime & Tactical Allocation"
   // digabungkan ke "Market Pulse" (daily-brief). goPage('market-regime') otomatis dialihkan ke
   // daily-brief dan di-scroll ke bagian 5 Pilar Regime & Alokasi Taktis.
-  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : (name === 'hargawajar' ? 'fundamental' : (name === 'market-regime' ? 'daily-brief' : name))));
+  // FIX (2026-11-23, user-requested): "pada sidebar performance tambahkan performance portofolio bulanan"
+  // goPage('perf-monthly') otomatis dialihkan ke halaman performance dan di-scroll ke kartu Performance Bulanan.
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : (name === 'hargawajar' ? 'fundamental' : (name === 'market-regime' ? 'daily-brief' : (name === 'perf-monthly' ? 'performance' : name)))));
   if (name === 'market-regime') {
     setTimeout(function() {
       var elSec = document.getElementById('db-regime-pillars');
+      if (elSec) elSec.scrollIntoView({ behavior: 'smooth' });
+    }, 150);
+  }
+  if (name === 'perf-monthly') {
+    setTimeout(function() {
+      var elSec = document.getElementById('perf-monthly-section');
       if (elSec) elSec.scrollIntoView({ behavior: 'smooth' });
     }, 150);
   }
@@ -919,6 +927,7 @@ function renderPage(name){
       break;
     case 'dataconn':if(typeof renderDataConnPage==='function')renderDataConnPage();else if(typeof renderDataConnectionPage==='function')renderDataConnectionPage();break;
     case 'performance':renderPerformance();break;
+    case 'perf-monthly':renderPerformance();break;
     case 'datahealth':renderDataHealth();break;
     case 'rdn':renderRdn();break;
     case 'rdn-audit':if(typeof renderRdnAudit==='function')renderRdnAudit();break;
