@@ -7,7 +7,7 @@
 // ada simulasi, kecuali dicatat jelas (lihat catatan benchmark IHSG).
 // ============================================================
 
-var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham', benchPeriod:'YTD', monthlyYear:'ALL' };
+var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham', benchPeriod:'YTD', monthlyYear:'ALL', monthlyUnit:'RP', selectedMonth:null };
 
 function renderPerformance(){
   if(typeof equitySnapshotToday==='function') equitySnapshotToday(); // jaga-jaga kalau user langsung buka halaman ini tanpa lewat Dashboard dulu
@@ -905,12 +905,25 @@ function perfComputeMonthlyBreakdown(){
     else if(r.type === 'TARIK' || r.type === 'WITHDRAW') item.netCashFlow -= (r.amount || 0);
   });
 
+  // Hitung returnPct secara jujur jika ada baseline ekuitas riil di awal bulan dari equityHistory
+  var startEqByMonth = {};
+  if(typeof equityHistory !== 'undefined' && Array.isArray(equityHistory)){
+    equityHistory.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); }).forEach(function(h){
+      var m = (h.date||'').slice(0,7);
+      if(!m || m.length < 7) return;
+      var eqVal = Number(h.equity || h.total || 0);
+      if(eqVal > 0 && startEqByMonth[m] === undefined) startEqByMonth[m] = eqVal;
+    });
+  }
+
   return Object.keys(byMonth).sort().map(function(m){
     var r = byMonth[m];
     r.capitalGain = Math.round(r.capitalGain);
     r.dividend = Math.round(r.dividend);
     r.totalReturn = r.capitalGain + r.dividend;
     r.winRate = r.sellTrades > 0 ? (r.winTrades / r.sellTrades * 100) : 0;
+    var baseEq = startEqByMonth[m];
+    r.returnPct = (baseEq && baseEq > 0) ? (r.totalReturn / baseEq * 100) : null;
     return r;
   });
 }
@@ -923,6 +936,24 @@ function perfSetMonthlyYear(yr, btn){
   perfRenderMonthlyReturn(yr);
 }
 
+function perfSetMonthlyUnit(unit, btn){
+  PERF_STATE.monthlyUnit = (unit === 'PCT') ? 'PCT' : 'RP';
+  var ubtns = document.querySelectorAll('#perf-monthly-unit-toggle .pbtn');
+  ubtns.forEach(function(b){ b.classList.remove('on'); });
+  if(btn) btn.classList.add('on');
+  perfRenderMonthlyReturn();
+}
+
+function perfSelectMonthRow(monthKey){
+  PERF_STATE.selectedMonth = (PERF_STATE.selectedMonth === monthKey) ? null : monthKey;
+  var rows = document.querySelectorAll('#perf-monthly-table-wrap tr[data-month]');
+  rows.forEach(function(tr){
+    var match = tr.getAttribute('data-month') === PERF_STATE.selectedMonth;
+    tr.classList.toggle('perf-row-highlighted', match);
+    if(match && tr.scrollIntoView) tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
 function perfRenderMonthlyReturn(filterYear){
   var allData = perfComputeMonthlyBreakdown();
   var selYr = filterYear || PERF_STATE.monthlyYear || 'ALL';
@@ -932,11 +963,20 @@ function perfRenderMonthlyReturn(filterYear){
   var matrixBox = el('perf-monthly-matrix-wrap');
   var tblBox = el('perf-monthly-table-wrap');
   var filterWrap = el('perf-monthly-year-filter');
+  var unitWrap = el('perf-monthly-unit-toggle');
+  var unitMode = PERF_STATE.monthlyUnit || 'RP';
 
   var MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   var currentYear = new Date().getFullYear().toString();
   var uniqueYears = Array.from(new Set(allData.map(function(d){ return d.year; }))).sort().reverse();
   if(!uniqueYears.length) uniqueYears = [currentYear];
+
+  // Render Unit Toggle (Rp | %)
+  if(unitWrap){
+    unitWrap.innerHTML =
+      '<button class="pbtn '+(unitMode==='RP'?'on':'')+'" onclick="perfSetMonthlyUnit(\'RP\',this)" title="Tampilkan dalam Rupiah">Rp</button>' +
+      '<button class="pbtn '+(unitMode==='PCT'?'on':'')+'" onclick="perfSetMonthlyUnit(\'PCT\',this)" title="Tampilkan dalam % terhadap ekuitas awal bulan">%</button>';
+  }
 
   // Render Year Filter buttons
   if(filterWrap){
@@ -949,7 +989,10 @@ function perfRenderMonthlyReturn(filterYear){
 
   if(!allData.length){
     if(kpiBox) kpiBox.innerHTML = '';
-    if(matrixBox) matrixBox.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px">Belum ada data transaksi atau dividen bulanan.</div>';
+    if(matrixBox) matrixBox.innerHTML = '<div style="text-align:center;padding:24px 16px;color:var(--text3);font-size:12px">'
+      + '<div style="margin-bottom:10px">Belum ada data transaksi atau dividen bulanan.</div>'
+      + '<button type="button" class="btn btn-primary btn-xs" onclick="if(typeof goPage===\'function\')goPage(\'transaksi\')"><i class="ti ti-plus"></i> Catat Transaksi Pertama</button>'
+      + '</div>';
     if(tblBox) tblBox.innerHTML = '';
     return;
   }
@@ -1003,17 +1046,28 @@ function perfRenderMonthlyReturn(filterYear){
     `;
   }
 
-  // Monthly Stacked Chart
+  // Monthly Stacked Chart (theme-aware colors)
   if(cv){
     var txt = (typeof _chartTextColor==='function') ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
+    var cs = (typeof getComputedStyle==='function' && document && document.documentElement) ? getComputedStyle(document.documentElement) : null;
+    var greenHex = (cs && cs.getPropertyValue('--green').trim()) || '#10B981';
+    var accentHex = (cs && cs.getPropertyValue('--accent').trim()) || '#3B82F6';
+    var isPctChart = (unitMode === 'PCT');
+    var chartTitleCG = isPctChart ? 'Total Return (%)' : 'Capital Gain';
+    var chartDataCG = isPctChart
+      ? filteredData.map(function(d){ return d.returnPct !== null ? Number(d.returnPct.toFixed(2)) : 0; })
+      : filteredData.map(function(d){ return d.capitalGain; });
+
     charts['perfMonthly'] = new Chart(cv, {
       type: 'bar',
       data: {
         labels: filteredData.map(function(d){ return d.month; }),
-        datasets: [
-          { label: 'Capital Gain', data: filteredData.map(function(d){ return d.capitalGain; }), backgroundColor: 'rgba(65,243,167,.8)', borderRadius: 3, stack: 'm' },
-          { label: 'Dividen', data: filteredData.map(function(d){ return d.dividend; }), backgroundColor: 'rgba(47,106,243,.8)', borderRadius: 3, stack: 'm' }
-        ]
+        datasets: isPctChart
+          ? [{ label: chartTitleCG, data: chartDataCG, backgroundColor: filteredData.map(function(d){ return (d.returnPct||0)>=0 ? greenHex : '#F43F5E'; }), borderRadius: 3 }]
+          : [
+              { label: 'Capital Gain', data: chartDataCG, backgroundColor: greenHex, borderRadius: 3, stack: 'm' },
+              { label: 'Dividen', data: filteredData.map(function(d){ return d.dividend; }), backgroundColor: accentHex, borderRadius: 3, stack: 'm' }
+            ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -1021,22 +1075,32 @@ function perfRenderMonthlyReturn(filterYear){
           legend: { display: true, labels: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' }, boxWidth: 10 } },
           tooltip: Object.assign({}, TT, {
             callbacks: {
-              label: function(c){ return c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + 'Rp ' + fmtK(c.parsed.y); }
+              label: function(c){
+                if(isPctChart) return c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%';
+                return c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + 'Rp ' + fmtK(c.parsed.y);
+              }
             }
           })
         },
         scales: {
-          x: { stacked: true, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' } }, grid: { display: false } },
-          y: { stacked: true, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' }, callback: function(v){ return fmtK(v); } }, grid: { color: GC } }
+          x: { stacked: !isPctChart, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' } }, grid: { display: false } },
+          y: { stacked: !isPctChart, ticks: { color: txt, font: { size: 9, weight: 'bold', family: '"Fira Code",monospace' }, callback: function(v){ return isPctChart ? (v.toFixed(1)+'%') : fmtK(v); } }, grid: { color: GC } }
         }
       }
     });
   }
 
+  // Compute max absolute monthly return for heatmap intensity shading
+  var maxAbsRet = 1;
+  allData.forEach(function(d){
+    var v = Math.abs(d.totalReturn || 0);
+    if(v > maxAbsRet) maxAbsRet = v;
+  });
+
   // Monthly Heatmap Matrix (Years x 12 Months)
   if(matrixBox){
     var matrixHtml = '<table class="terminal-tbl" style="width:100%;font-size:11px;border-collapse:collapse;text-align:center">'
-      + '<thead><tr><th style="text-align:left;width:60px">Tahun</th>';
+      + '<thead><tr><th class="perf-matrix-sticky-col" style="text-align:left;width:60px">Tahun</th>';
     MONTH_SHORT.forEach(function(m){ matrixHtml += '<th style="text-align:center;padding:6px 4px">' + m + '</th>'; });
     matrixHtml += '<th style="text-align:right;padding:6px 8px">YTD Total</th></tr></thead><tbody>';
 
@@ -1046,16 +1110,20 @@ function perfRenderMonthlyReturn(filterYear){
       var ytdSum = 0;
       yrData.forEach(function(d){ yrMap[d.monthNum] = d; ytdSum += d.totalReturn; });
 
-      matrixHtml += '<tr><td class="mono" style="font-weight:700;text-align:left;padding:6px 4px">'+yr+'</td>';
+      matrixHtml += '<tr><td class="mono perf-matrix-sticky-col" style="font-weight:700;text-align:left;padding:6px 4px">'+yr+'</td>';
       for(var mNum = 1; mNum <= 12; mNum++){
         var entry = yrMap[mNum];
         if(entry && (entry.capitalGain !== 0 || entry.dividend !== 0 || entry.sellTrades > 0)){
           var ret = entry.totalReturn;
-          var bg = ret > 0 ? 'rgba(16,185,129,0.18)' : (ret < 0 ? 'rgba(239,68,68,0.18)' : 'var(--bg3)');
+          var ratio = Math.abs(ret) / maxAbsRet;
+          var alpha = ratio >= 0.66 ? '0.32' : (ratio >= 0.30 ? '0.20' : '0.11');
+          var bg = ret > 0 ? 'rgba(16,185,129,'+alpha+')' : (ret < 0 ? 'rgba(244,63,94,'+alpha+')' : 'var(--bg3)');
           var color = ret > 0 ? 'var(--green)' : (ret < 0 ? 'var(--red)' : 'var(--text3)');
-          var tip = entry.monthName + ' ' + yr + ' | Realized: Rp ' + fmtK(entry.capitalGain) + ' | Dividen: Rp ' + fmtK(entry.dividend) + ' | Trades: ' + entry.sellTrades + ' | WR: ' + entry.winRate.toFixed(0) + '%';
-          matrixHtml += '<td style="padding:6px 2px;background:'+bg+';color:'+color+';font-family:var(--font-mono);font-size:10.5px;font-weight:700;border:1px solid var(--border-subtle)" title="'+tip+'">'
-            + (ret >= 0 ? '+' : '') + fmtK(ret) + '</td>';
+          var pctTxt = entry.returnPct !== null ? ((entry.returnPct>=0?'+':'') + entry.returnPct.toFixed(1) + '%') : '—';
+          var cellVal = (unitMode === 'PCT') ? pctTxt : ((ret >= 0 ? '+' : '') + fmtK(ret));
+          var tip = entry.monthName + ' ' + yr + ' | Realized: Rp ' + fmtK(entry.capitalGain) + ' | Dividen: Rp ' + fmtK(entry.dividend) + ' | Return %: ' + pctTxt + ' | Trades: ' + entry.sellTrades + ' | WR: ' + entry.winRate.toFixed(0) + '% (Klik untuk sorot baris)';
+          matrixHtml += '<td class="perf-matrix-cell-active" onclick="perfSelectMonthRow(\''+entry.month+'\')" style="padding:6px 2px;background:'+bg+';color:'+color+';font-family:var(--font-mono);font-size:10.5px;font-weight:700;border:1px solid var(--border-subtle)" title="'+tip+'">'
+            + cellVal + '</td>';
         } else {
           matrixHtml += '<td style="padding:6px 2px;color:var(--text3);font-family:var(--font-mono);font-size:10px;background:var(--bg3);border:1px solid var(--border-subtle)">—</td>';
         }
@@ -1079,6 +1147,7 @@ function perfRenderMonthlyReturn(filterYear){
       + '<th style="text-align:right">Capital Gain</th>'
       + '<th style="text-align:right">Dividen</th>'
       + '<th style="text-align:right">Net Setor Kas</th>'
+      + '<th style="text-align:right">Return %</th>'
       + '<th style="text-align:right;font-weight:700">Total Return Bulanan</th>'
       + '</tr></thead><tbody>';
 
@@ -1087,7 +1156,11 @@ function perfRenderMonthlyReturn(filterYear){
       var cgCls = d.capitalGain >= 0 ? 'up' : 'dn';
       var totCls = d.totalReturn >= 0 ? 'up' : 'dn';
       var cfCls = d.netCashFlow >= 0 ? 'up' : 'dn';
-      tblHtml += '<tr>'
+      var isSel = (PERF_STATE.selectedMonth === d.month);
+      var pctCell = d.returnPct !== null
+        ? '<span class="'+(d.returnPct>=0?'up':'dn')+'">'+(d.returnPct>=0?'+':'')+d.returnPct.toFixed(2)+'%</span>'
+        : '<span style="color:var(--text3)" title="Baseline ekuitas awal bulan belum tersedia">—</span>';
+      tblHtml += '<tr data-month="'+d.month+'" class="'+(isSel?'perf-row-highlighted':'')+'">'
         + '<td class="mono" style="font-weight:700;text-align:left">'+d.monthName+' '+d.year+'</td>'
         + '<td style="text-align:center" class="mono">'+d.sellTrades+' order '+(d.sellTrades>0?'<span style="font-size:9.5px;color:var(--text3)">('+d.winTrades+'W/'+d.lossTrades+'L)</span>':'')+'</td>'
         + '<td style="text-align:center" class="mono">'+d.buyTrades+' order</td>'
@@ -1095,6 +1168,7 @@ function perfRenderMonthlyReturn(filterYear){
         + '<td class="mono '+cgCls+'" style="text-align:right">'+(d.capitalGain>=0?'+':'')+'Rp '+fmtK(d.capitalGain)+'</td>'
         + '<td class="mono up" style="text-align:right">+Rp '+fmtK(d.dividend)+'</td>'
         + '<td class="mono '+cfCls+'" style="text-align:right">'+(d.netCashFlow>=0?'+':'')+'Rp '+fmtK(d.netCashFlow)+'</td>'
+        + '<td class="mono" style="text-align:right">'+pctCell+'</td>'
         + '<td class="mono '+totCls+'" style="text-align:right;font-weight:700">'+(d.totalReturn>=0?'+':'')+'Rp '+fmtK(d.totalReturn)+'</td>'
         + '</tr>';
     });
@@ -1105,6 +1179,8 @@ function perfRenderMonthlyReturn(filterYear){
 
 // Make accessible globally
 window.perfSetMonthlyYear = perfSetMonthlyYear;
+window.perfSetMonthlyUnit = perfSetMonthlyUnit;
+window.perfSelectMonthRow = perfSelectMonthRow;
 window.perfRenderMonthlyReturn = perfRenderMonthlyReturn;
 window.perfComputeMonthlyBreakdown = perfComputeMonthlyBreakdown;
 

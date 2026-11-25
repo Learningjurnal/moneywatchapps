@@ -180,7 +180,7 @@
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/main.css?v=20261112a">
 <link rel="stylesheet" href="css/wealth.css?v=20261005a">
-<link rel="stylesheet" href="css/arc-bridge.css?v=20261112a">
+<link rel="stylesheet" href="css/arc-bridge.css?v=20261125b">
 </head>
 <body>
 
@@ -1714,6 +1714,7 @@
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Breakdown kinerja bulanan — Realized Capital Gain, Dividen, Net Setor Kas, Win Rate &amp; Matriks Heatmap Per Bulan</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="perf-monthly-unit-toggle" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px"></div>
         <div id="perf-monthly-year-filter" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px"></div>
       </div>
     </div>
@@ -1736,7 +1737,7 @@
     <!-- Detailed Monthly Table -->
     <div style="border-top:1px solid var(--border-subtle);padding-top:12px">
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Tabel Rincian Kinerja Bulanan</div>
-      <div id="perf-monthly-table-wrap" style="overflow-x:auto"></div>
+      <div id="perf-monthly-table-wrap" class="perf-table-scroll"></div>
     </div>
   </div>
 
@@ -4619,7 +4620,7 @@
 <script src="js/04-render.js?v=20261004a"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20261003a"></script>
-<script src="js/06-analysis-router.js?v=20261125a"></script>
+<script src="js/06-analysis-router.js?v=20261125b"></script>
 <script src="js/07-flowscan.js?v=20261005a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20261003a"></script>
@@ -4630,7 +4631,7 @@
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20261003a"></script>
 <script src="js/20-wealth.js?v=20261005a"></script>
-<script src="js/21-performance.js?v=20261005c"></script>
+<script src="js/21-performance.js?v=20261125b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20261004c"></script>
 <script src="js/24-stockmaster.js?v=20260929a"></script>
@@ -4640,7 +4641,7 @@
 <script src="js/28-decisiontools.js?v=20261004c"></script>
 <script src="js/29-institutional-ui.js?v=20261004a"></script>
 <script src="js/30-price-alerts.js?v=20260930b"></script><script src="js/32-pdf-reports.js?v=20261003b"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
-<script src="js/35-settings.js?v=20261125a"></script>
+<script src="js/35-settings.js?v=20261125b"></script>
 <script src="js/37-tradewave-engine.js?v=20260928d"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20261005a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>

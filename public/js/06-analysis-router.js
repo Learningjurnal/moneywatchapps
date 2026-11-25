@@ -802,13 +802,23 @@ function goPage(name,btn){
   if (name === 'market-regime') {
     setTimeout(function() {
       var elSec = document.getElementById('db-regime-pillars');
-      if (elSec) elSec.scrollIntoView({ behavior: 'smooth' });
+      if (elSec) {
+        elSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        elSec.classList.remove('mw-scroll-highlight');
+        void elSec.offsetWidth;
+        elSec.classList.add('mw-scroll-highlight');
+      }
     }, 150);
   }
   if (name === 'perf-monthly') {
     setTimeout(function() {
       var elSec = document.getElementById('perf-monthly-section');
-      if (elSec) elSec.scrollIntoView({ behavior: 'smooth' });
+      if (elSec) {
+        elSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        elSec.classList.remove('mw-scroll-highlight');
+        void elSec.offsetWidth;
+        elSec.classList.add('mw-scroll-highlight');
+      }
     }, 150);
   }
   // Sama seperti reset US_STATE.pageTab di bawah: switch ke tab Harga Wajar

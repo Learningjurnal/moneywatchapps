@@ -440,7 +440,10 @@
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
               <i class="ti ti-receipt-tax" style="color:var(--accent)"></i> Tarif Pajak &amp; Komisi Broker Sekuritas
             </div>
-            <span class="badge b-up">Configurable</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="dirty-badge-tax" class="badge b-amb settings-dirty-badge" style="display:none">Belum disimpan</span>
+              <span class="badge b-up">Configurable</span>
+            </div>
           </div>
 
           <!-- Broker Quick Presets -->
@@ -539,7 +542,10 @@
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
               <i class="ti ti-flame" style="color:var(--amber)"></i> Sasaran Keuangan &amp; Parameter FIRE
             </div>
-            <span class="badge b-neu" style="font-size:10px">Parameter FIRE</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="dirty-badge-fire" class="badge b-amb settings-dirty-badge" style="display:none">Belum disimpan</span>
+              <span class="badge b-neu" style="font-size:10px">Parameter FIRE</span>
+            </div>
           </div>
 
           <!-- FIRE Progress Meter -->
@@ -600,9 +606,15 @@
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
               <i class="ti ti-building-bank" style="color:var(--accent)"></i> Manajemen Rekening Bank &amp; Kas Likuid
             </div>
-            <span class="badge b-up">${accounts.length} Rekening</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="badge b-up">${accounts.length} Rekening</span>
+              <button type="button" class="settings-card-collapse-btn" onclick="MW_SETTINGS.toggleCardSection('card-bank')" title="Buka/Tutup bagian ini" aria-label="Toggle Rekening Bank">
+                <i id="card-bank-chevron" class="ti ti-chevron-up"></i>
+              </button>
+            </div>
           </div>
 
+          <div id="card-bank-body">
           <!-- Existing Bank Accounts List -->
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
             ${accounts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">Belum ada rekening bank yang dikonfigurasi.</div>' : ''}
@@ -642,6 +654,7 @@
               Tambahkan Rekening Bank
             </button>
           </form>
+          </div>
         </div>
 
         <!-- 4. Liabilities & Debts Management -->
@@ -650,8 +663,15 @@
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
               <i class="ti ti-credit-card-off" style="color:var(--red)"></i> Manajemen Liabilitas &amp; Kewajiban
             </div>
-            <span class="badge b-dn">${debts.length} Pos Hutang</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="badge b-dn">${debts.length} Pos Hutang</span>
+              <button type="button" class="settings-card-collapse-btn" onclick="MW_SETTINGS.toggleCardSection('card-debt')" title="Buka/Tutup bagian ini" aria-label="Toggle Liabilitas">
+                <i id="card-debt-chevron" class="ti ti-chevron-up"></i>
+              </button>
+            </div>
           </div>
+
+          <div id="card-debt-body">
 
           <!-- Existing Debts List -->
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
@@ -691,6 +711,7 @@
               Tambahkan Pos Liabilitas
             </button>
           </form>
+          </div>
         </div>
       </div>
 
@@ -704,10 +725,15 @@
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
                             Cadangan Data, Pemulihan &amp; Database Cloud
             </div>
-            <span class="badge b-up">Data Vault</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="badge b-up">Data Vault</span>
+              <button type="button" class="settings-card-collapse-btn" onclick="MW_SETTINGS.toggleCardSection('card-vault')" title="Buka/Tutup bagian ini" aria-label="Toggle Data Vault">
+                <i id="card-vault-chevron" class="ti ti-chevron-up"></i>
+              </button>
+            </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div id="card-vault-body" style="display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:6px">
               <div>
                 <div style="font-weight:700;font-size:12.5px;color:#10b981">Ekspor Terkonsolidasi (Excel / CSV)</div>
@@ -765,10 +791,15 @@
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
                             Tampilan, Kerapatan &amp; Skala Antarmuka
             </div>
-            <span class="badge b-up">UI Control</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="badge b-up">UI Control</span>
+              <button type="button" class="settings-card-collapse-btn" onclick="MW_SETTINGS.toggleCardSection('card-display')" title="Buka/Tutup bagian ini" aria-label="Toggle UI Control">
+                <i id="card-display-chevron" class="ti ti-chevron-up"></i>
+              </button>
+            </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div id="card-display-body" style="display:flex;flex-direction:column;gap:12px">
             <div>
               <div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px">Kerapatan Tabel Data (Density):</div>
               <div style="display:flex;gap:6px">
@@ -852,8 +883,19 @@
     loadApiQuotaWidgets();
     renderFundamentalRows([]);
     renderFundamentalOverrideList();
+    bindDirtyWatcher('v6-form-tax-settings', 'dirty-badge-tax');
+    bindDirtyWatcher('v6-form-fire-settings', 'dirty-badge-fire');
     var initialTab = (typeof getActiveSettingsTab === "function") ? getActiveSettingsTab() : "fundamental";
     switchSettingsTab(initialTab);
+  }
+
+  function bindDirtyWatcher(formId, badgeId) {
+    var form = document.getElementById(formId);
+    var badge = document.getElementById(badgeId);
+    if (!form || !badge || typeof form.addEventListener !== 'function') return;
+    var markDirty = function() { badge.style.display = 'inline-flex'; };
+    form.addEventListener('input', markDirty);
+    form.addEventListener('change', markDirty);
   }
 
 

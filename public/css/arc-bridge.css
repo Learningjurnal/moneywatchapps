@@ -164,7 +164,7 @@ body.theme-light .settings-tab-btn.active {
 }
 
 /* ── 4. FINANCIAL TABULAR NUMBERS ─────────────────────────────────────────── */
-.num, .price, .pnl, .pct, .ratio,
+.mono, .num, .price, .pnl, .pct, .ratio,
 td.num, td.right, [data-num],
 .font-mono, .ticker, .tick-val, .mval {
   font-variant-numeric: tabular-nums;
@@ -186,6 +186,74 @@ td.num, td.right, [data-num],
   font-size: 9.5px;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: .06em;
+}
+
+/* ── 6. DEEP-LINK SCROLL HIGHLIGHT & PERFORMANCE MONTHLY UX ───────────────── */
+@keyframes mw-target-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59, 130, 246, .45); border-color: rgba(59, 130, 246, .75); }
+  70%  { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); border-color: rgba(59, 130, 246, .4); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+.mw-scroll-highlight {
+  animation: mw-target-pulse 1.6s var(--ease-standard, ease) 1;
+}
+
+.perf-table-scroll {
+  max-height: 380px;
+  overflow: auto;
+  border-radius: 8px;
+}
+
+.perf-matrix-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg2, #0F131D);
+}
+body.theme-light .perf-matrix-sticky-col {
+  background: var(--bg2, #FFFFFF);
+}
+
+.perf-matrix-cell-active {
+  cursor: pointer;
+  transition: transform 120ms ease, outline 120ms ease;
+}
+.perf-matrix-cell-active:hover {
+  outline: 1.5px solid var(--accent, #3B82F6);
+  outline-offset: -1px;
+}
+
+.perf-row-highlighted td {
+  background: var(--accent-soft, rgba(59, 130, 246, 0.12)) !important;
+  transition: background 240ms ease;
+}
+
+/* ── 7. SETTINGS UX HELPERS ───────────────────────────────────────────────── */
+.settings-dirty-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+}
+.settings-card-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border2, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--text3, #64748B);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.settings-card-collapse-btn:hover {
+  background: var(--bg4, #1E2536);
+  color: var(--text, #F8FAFC);
+}
+body.theme-light .settings-card-collapse-btn:hover {
+  background: var(--bg4, #E0E4E9);
+  color: var(--text, #1D252C);
 }
