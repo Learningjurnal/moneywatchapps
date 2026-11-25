@@ -593,7 +593,7 @@
       <!-- ==================================================================== -->
       <!-- KATEGORI 4: MULTI-BANK & LIABILITAS (data-cat="wealth") -->
       <!-- ==================================================================== -->
-      <div class="settings-cat-section settings-cat-grid" data-cat="wealth" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px;display:none">
+      <div class="settings-cat-section settings-cat-grid" data-cat="wealth" style="grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px;display:none">
         <!-- 3. Multi-Bank Accounts Management -->
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
@@ -697,7 +697,7 @@
       <!-- ==================================================================== -->
       <!-- KATEGORI 5: CADANGAN DATA, TAMPILAN & KSEI (data-cat="system") -->
       <!-- ==================================================================== -->
-      <div class="settings-cat-section settings-cat-grid" data-cat="system" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px;display:none">
+      <div class="settings-cat-section settings-cat-grid" data-cat="system" style="grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px;display:none">
         <!-- 5. Data Vault & Backup / Restore -->
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
@@ -853,7 +853,7 @@
     renderFundamentalRows([]);
     renderFundamentalOverrideList();
     var initialTab = (typeof getActiveSettingsTab === "function") ? getActiveSettingsTab() : "fundamental";
-    if (typeof switchSettingsTab === "function") switchSettingsTab(initialTab);
+    switchSettingsTab(initialTab);
   }
 
 
