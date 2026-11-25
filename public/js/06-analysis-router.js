@@ -875,6 +875,14 @@ function goPage(name,btn){
     }
   }
 
+  // Perbarui breadcrumb halaman aktif di Topbar
+  var crumbEl = document.getElementById('tb-page-crumb');
+  if (crumbEl) {
+    var lblEl = activeBtn && activeBtn.querySelector ? activeBtn.querySelector('.side-label') : null;
+    var pageLabel = lblEl ? lblEl.textContent.trim() : (name === 'perf-monthly' ? 'Performance Bulanan' : name);
+    crumbEl.textContent = pageLabel;
+  }
+
   currentPage=name;
   renderPage(name);
   closeDD();

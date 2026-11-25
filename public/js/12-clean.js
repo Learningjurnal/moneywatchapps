@@ -191,28 +191,115 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// Inisialisasi shortcut keyboard (Ctrl+K / Cmd+K) untuk mencari menu di sidebar
-document.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    var searchInput = document.getElementById('side-nav-search');
-    if (searchInput) {
-      e.preventDefault();
-      searchInput.focus();
-      searchInput.select();
-    }
+// Catatan: Ctrl+K / Cmd+K ditangani secara terpadu oleh Command Palette di 29-institutional-ui.js.
+// Modul ini menangani Pinned / Favorit Menu Sidebar (mw_pinned_nav_v1).
+var MW_PIN_KEY = 'mw_pinned_nav_v1';
+
+function sideGetPinnedPages() {
+  try {
+    var raw = localStorage.getItem(MW_PIN_KEY);
+    var arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
   }
-});
+}
+
+function sideSavePinnedPages(arr) {
+  try { localStorage.setItem(MW_PIN_KEY, JSON.stringify(arr || [])); } catch (e) {}
+}
+
+function sideRenderPinnedNav() {
+  var group = document.getElementById('side-pinned-group');
+  var list = document.getElementById('side-pinned-list');
+  if (!group || !list) return;
+
+  var pinned = sideGetPinnedPages();
+  list.innerHTML = '';
+
+  // Sinkronkan state ikon pin pada seluruh tombol menu
+  document.querySelectorAll('#side-nav-scroll .side-group:not(#side-pinned-group) button[data-pin-key]').forEach(function(btn) {
+    var key = btn.getAttribute('data-pin-key');
+    var pinEl = btn.querySelector('.side-pin-btn');
+    if (pinEl) {
+      var isPinned = pinned.indexOf(key) !== -1;
+      pinEl.classList.toggle('pinned', isPinned);
+      pinEl.title = isPinned ? 'Lepas sematan dari Favorit' : 'Sematkan ke Favorit';
+    }
+  });
+
+  if (!pinned.length) {
+    group.style.display = 'none';
+    return;
+  }
+
+  var count = 0;
+  pinned.forEach(function(key) {
+    var srcBtn = document.querySelector('#side-nav-scroll .side-group:not(#side-pinned-group) button[data-pin-key="' + key + '"]');
+    if (!srcBtn) return;
+    var clone = document.createElement('button');
+    var iconEl = srcBtn.querySelector('i');
+    var labelEl = srcBtn.querySelector('.side-label');
+    var iconCls = iconEl ? iconEl.className : 'ti ti-star';
+    var labelTxt = labelEl ? labelEl.textContent : key;
+    clone.innerHTML = '<i class="' + iconCls + '"></i><span class="side-label">' + labelTxt + '</span>';
+    clone.setAttribute('onclick', srcBtn.getAttribute('onclick') || '');
+    clone.title = labelTxt + ' (Favorit)';
+    list.appendChild(clone);
+    count++;
+  });
+
+  group.style.display = count > 0 ? '' : 'none';
+}
+
+function sideTogglePinPage(key, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var pinned = sideGetPinnedPages();
+  var idx = pinned.indexOf(key);
+  if (idx !== -1) pinned.splice(idx, 1);
+  else pinned.push(key);
+  sideSavePinnedPages(pinned);
+  sideRenderPinnedNav();
+}
+
+function sideInitPinButtons() {
+  var btns = document.querySelectorAll('#side-nav-scroll .side-group:not(#side-pinned-group) .side-items button[onclick]');
+  btns.forEach(function(btn) {
+    if (btn.querySelector('.side-pin-btn')) return;
+    var oc = btn.getAttribute('onclick') || '';
+    var m = oc.match(/goPage\('([^']+)'/);
+    var key = m ? m[1] : oc.slice(0, 32).replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (!key) return;
+    btn.setAttribute('data-pin-key', key);
+    var pin = document.createElement('span');
+    pin.className = 'side-pin-btn';
+    pin.innerHTML = '<i class="ti ti-pin"></i>';
+    pin.setAttribute('role', 'button');
+    pin.setAttribute('aria-label', 'Sematkan menu');
+    pin.addEventListener('click', function(e) { sideTogglePinPage(key, e); });
+    btn.appendChild(pin);
+  });
+  sideRenderPinnedNav();
+}
 
 // Jalankan pemulihan status saat halaman dimuat
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', sideRestoreGroupStates);
+  document.addEventListener('DOMContentLoaded', function() {
+    sideRestoreGroupStates();
+    sideInitPinButtons();
+  });
 } else {
-  setTimeout(sideRestoreGroupStates, 50);
+  setTimeout(function() {
+    sideRestoreGroupStates();
+    sideInitPinButtons();
+  }, 50);
 }
 
 window.sideToggleGroup = sideToggleGroup;
 window.sideToggleCollapse = sideToggleCollapse;
 window.sideNavFilter = sideNavFilter;
+window.sideTogglePinPage = sideTogglePinPage;
 window.sideRestoreGroupStates = sideRestoreGroupStates;
 
 // Global window shortcuts

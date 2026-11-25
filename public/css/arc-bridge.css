@@ -257,3 +257,69 @@ body.theme-light .settings-card-collapse-btn:hover {
   background: var(--bg4, #E0E4E9);
   color: var(--text, #1D252C);
 }
+
+/* ── 8. TOPBAR CONTEXT, HEALTH PILL & PINNED SIDEBAR ──────────────────────── */
+.tb-page-crumb {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text2, #CBD5E1);
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--bg3, #161B28);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.07));
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.theme-light .tb-page-crumb {
+  background: var(--bg3, #F1F5F9);
+  color: var(--text2, #334155);
+}
+
+.tb-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text2, #CBD5E1);
+  background: var(--bg3, #161B28);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.07));
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.tb-health-pill:hover {
+  border-color: var(--accent, #3B82F6);
+}
+.tb-health-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green, #10B981);
+}
+
+.side-items button {
+  position: relative;
+}
+.side-pin-btn {
+  margin-left: auto;
+  opacity: 0;
+  font-size: 11px;
+  color: var(--text3, #64748B);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.side-items button:hover .side-pin-btn,
+.side-pin-btn.pinned {
+  opacity: 1;
+}
+.side-pin-btn.pinned {
+  color: var(--accent, #3B82F6);
+}
+.side-nav.collapsed .side-pin-btn {
+  display: none;
+}

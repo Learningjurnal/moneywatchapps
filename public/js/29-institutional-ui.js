@@ -198,6 +198,12 @@
       { id: 'rdn', title: 'Kas RDN', sub: 'Mutasi saldo, top up, tarik dana, dan rekonsiliasi fee' }
     ];
 
+    pages.push({
+      id: 'perf-monthly',
+      title: 'Performance Bulanan',
+      sub: 'Breakdown return bulanan, heatmap Jan–Des, dan win rate'
+    });
+
     pages.forEach(function(pg) {
       items.push({
         type: 'page',
@@ -258,6 +264,18 @@
       badgeColor: 'var(--amber)',
       action: function() {
         if (typeof openBackupModal === 'function') openBackupModal();
+      }
+    });
+
+    items.push({
+      type: 'action',
+      category: 'Aksi Cepat',
+      title: 'Ganti Tema (Dark / Light Mode)',
+      sub: 'Beralih antara tema gelap Obsidian Slate dan tema terang Alabaster',
+      badge: 'Tema',
+      badgeColor: 'var(--accent)',
+      action: function() {
+        if (typeof toggleTheme === 'function') toggleTheme();
       }
     });
 

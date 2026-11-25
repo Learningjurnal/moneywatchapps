@@ -507,7 +507,7 @@
             <!-- PMK 18/2021 Dividend Exemption Toggle -->
             <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:18px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <div style="font-size:13px;font-weight:700;color:var(--text)">Bebas PPh Dividen (PMK 18/2021)</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text)">Bebas PPh Dividen (PMK 18/2021) ${typeof uiInfoIcon === 'function' ? uiInfoIcon('Berdasarkan UU Cipta Kerja & PMK 18/2021, dividen saham dalam negeri bebas PPh Final 10% apabila direinvestasikan di instrumen yang diizinkan di Indonesia minimal 3 tahun.') : ''}</div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                   <input type="checkbox" id="cfg-div-exempt" ${state.tax.dividenExempt !== false ? 'checked' : ''} onchange="var dt=document.getElementById('cfg-divtax-box'); if(dt) dt.style.display=this.checked?'none':'block';">
                   <span style="font-size:12px;font-weight:600;color:var(--green)">0% (Bebas Pajak)</span>
@@ -861,7 +861,11 @@
             <div style="font-weight:700;font-size:14px;color:var(--text)">Kuota Invezgo (Bandarmology)</div>
             <span class="badge b-up">Real-time</span>
           </div>
-          <div id="quota-invezgo-box" style="font-size:12px;color:var(--text3)">Memuat data kuota…</div>
+          <div id="quota-invezgo-box" style="font-size:12px;color:var(--text3)">
+            <div class="skeleton-box" style="height:20px;width:45%;margin-bottom:8px"></div>
+            <div class="skeleton-box" style="height:8px;width:100%;margin-bottom:6px"></div>
+            <div class="skeleton-box" style="height:12px;width:70%"></div>
+          </div>
         </div>
 
         <!-- 8. Data Quality Gate Telemetry — jawaban praktis atas komentar
@@ -874,7 +878,11 @@
             <div style="font-weight:700;font-size:14px;color:var(--text)">Data Quality Gate (Sinyal AI Trading)</div>
             <span class="badge b-up">Hari ini</span>
           </div>
-          <div id="quota-dq-box" style="font-size:12px;color:var(--text3)">Memuat telemetri…</div>
+          <div id="quota-dq-box" style="font-size:12px;color:var(--text3)">
+            <div class="skeleton-box" style="height:20px;width:40%;margin-bottom:8px"></div>
+            <div class="skeleton-box" style="height:8px;width:100%;margin-bottom:6px"></div>
+            <div class="skeleton-box" style="height:12px;width:75%"></div>
+          </div>
         </div>
       </div>
     `;
@@ -962,7 +970,10 @@
           invezgoBox.innerHTML = '<span style="color:var(--text3)">Data kuota tidak tersedia.</span>';
         }
       } catch (err) {
-        invezgoBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat kuota Invezgo (' + escHtml(String(err && err.message || err)) + ').</span>';
+        invezgoBox.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+          + '<span>Gagal memuat kuota Invezgo (' + escHtml(String(err && err.message || err)) + ').</span>'
+          + '<button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.reloadQuotaWidgets()">Coba Lagi</button>'
+          + '</div>';
       }
     }
 
@@ -987,7 +998,10 @@
           dqBox.innerHTML = '<span style="color:var(--text3)">Data telemetri tidak tersedia.</span>';
         }
       } catch (err) {
-        dqBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat telemetri Data Quality Gate (' + escHtml(String(err && err.message || err)) + ').</span>';
+        dqBox.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+          + '<span>Gagal memuat telemetri Data Quality Gate (' + escHtml(String(err && err.message || err)) + ').</span>'
+          + '<button type="button" class="btn btn-ghost btn-xs" onclick="MW_SETTINGS.reloadQuotaWidgets()">Coba Lagi</button>'
+          + '</div>';
       }
     }
   }
@@ -1856,7 +1870,8 @@
     switchTab: switchSettingsTab,
     toggleCardSection: toggleCardSection,
     toggleFundamentalSubSection: toggleFundamentalSubSection,
-    switchFundamentalViewTab: switchFundamentalViewTab
+    switchFundamentalViewTab: switchFundamentalViewTab,
+    reloadQuotaWidgets: loadApiQuotaWidgets
   };
 
   // Aliases for Router Compatibility

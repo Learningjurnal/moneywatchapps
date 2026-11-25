@@ -1037,7 +1037,7 @@ function perfRenderMonthlyReturn(filterYear){
         <div class="msub neu">${filteredData.length} bulan aktif</div>
       </div>
       <div class="metric">
-        <div class="mlabel">Bulan Profit (Win Rate)</div>
+        <div class="mlabel">Bulan Profit (Win Rate) ${typeof uiInfoIcon==='function' ? uiInfoIcon('Persentase bulan dengan Total Return positif (Capital Gain + Dividen > 0) terhadap seluruh bulan aktif.') : ''}</div>
         <div class="mval ${winMonthPct>=50 ? 'up' : 'neu'}" style="font-size:15px">
           ${winMonthPct}%
         </div>
