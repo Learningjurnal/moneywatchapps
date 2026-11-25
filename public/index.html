@@ -180,7 +180,7 @@
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/main.css?v=20261112a">
 <link rel="stylesheet" href="css/wealth.css?v=20261005a">
-<link rel="stylesheet" href="css/arc-bridge.css?v=20261125c">
+<link rel="stylesheet" href="css/arc-bridge.css?v=20261125d">
 </head>
 <body>
 
@@ -732,20 +732,20 @@
     <span id="tb-page-crumb" class="tb-page-crumb hide-mobile">Dashboard</span>
   </div>
 
-  <div class="topbar-right" style="display:flex;align-items:center;gap:8px">
+  <div class="topbar-right" style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span id="save-status-bar" role="status" aria-live="polite" style="font-size:9px;font-family:var(--font-mono);transition:opacity .5s;opacity:0;color:var(--green);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap"></span>
+
     <!-- Quick +Transaksi & Command Palette Search -->
-    <button type="button" class="btn btn-primary btn-xs hide-mobile" onclick="if(typeof openModal==='function')openModal('tx')" title="Catat Transaksi Saham Baru" style="padding:4px 9px;border-radius:6px;font-size:11px">
+    <button type="button" class="btn btn-primary btn-xs hide-mobile" onclick="if(typeof openModal==='function')openModal('tx')" title="Catat Transaksi Saham Baru" style="padding:5px 10px;border-radius:6px;font-size:11px;white-space:nowrap;flex-shrink:0">
       <i class="ti ti-plus"></i> Transaksi
     </button>
-    <div class="hide-mobile" style="position:relative;display:flex;align-items:center">
+    <div class="hide-mobile topbar-search-box">
       <i class="ti ti-search" style="position:absolute;left:9px;color:var(--text3);font-size:12px;pointer-events:none"></i>
-      <input type="text" id="topbar-global-search" placeholder="Cari saham (BBCA, BBRI)..." onkeydown="if(event.key==='Enter'&&this.value.trim()){ mwSelectGlobalStock(this.value.trim()); this.value=''; }" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 28px 4px 26px;font-size:11px;font-family:var(--font-mono);color:var(--text);width:185px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-      <span onclick="if(typeof openCommandPalette==='function')openCommandPalette()" title="Command Palette (Ctrl+K)" style="cursor:pointer;position:absolute;right:6px;font-size:9px;font-family:var(--font-mono);color:var(--text3);background:var(--bg2);padding:1px 4px;border-radius:3px;border:1px solid var(--border)">Ctrl K</span>
+      <input type="text" id="topbar-global-search" placeholder="Cari saham (BBCA)..." onkeydown="if(event.key==='Enter'&&this.value.trim()){ mwSelectGlobalStock(this.value.trim()); this.value=''; }" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font-mono);color:var(--text);outline:none;transition:border-color .2s, width .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <span class="topbar-kbd-badge" onclick="if(typeof openCommandPalette==='function')openCommandPalette()" title="Command Palette (Ctrl+K)">Ctrl K</span>
     </div>
-
-    <span id="save-status-bar" role="status" aria-live="polite" style="font-size:9px;font-family:var(--font-mono);transition:opacity .5s;opacity:0;color:var(--green);letter-spacing:.5px;text-transform:uppercase"></span>
     
-    <div class="rdn-bar" onclick="goPage('rdn')" style="cursor:pointer" title="Klik untuk kelola Kas & Mutasi RDN">
+    <div class="rdn-bar" onclick="goPage('rdn')" style="cursor:pointer;flex-shrink:0" title="Klik untuk kelola Kas & Mutasi RDN">
       <span class="rdn-label">RDN</span>
       <span class="rdn-val" id="tb-rdn">Rp 0</span>
     </div>
