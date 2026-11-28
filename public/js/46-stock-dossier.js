@@ -1894,14 +1894,14 @@ function renderStockDossierPage(targetTicker) {
   // DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
   var wUtama = (res.weightsUsed.valuation || 0) + (res.weightsUsed.technical || 0) + (res.weightsUsed.fundamental || 0);
   html += '  <div>';
-  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(15,105,255,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(15,105,255,0.22);border-left:3px solid var(--blue);border-radius:8px">';
+  html += '    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(59,130,246,0.10) 0%, var(--bg2) 100%);border:1px solid rgba(59,130,246,0.25);border-left:3px solid var(--accent, var(--blue));border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
-  html += '          <i class="ti ti-building-bank" style="color:var(--blue);font-size:15px"></i> DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
+  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--text);letter-spacing:0.3px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '          <i class="ti ti-building-bank" style="color:var(--accent, var(--blue));font-size:15px"></i> DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
   html += '        </div>';
-  html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas bisnis.</div>';
+  html += '        <div style="font-size:11px;color:var(--text2);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas bisnis.</div>';
   html += '      </div>';
-  html += '      <span class="badge" style="background:rgba(15,105,255,0.15);border:1px solid rgba(15,105,255,0.3);color:var(--text);font-weight:800;font-size:10px;padding:3px 8px;letter-spacing:0.5px">BOBOT ' + wUtama + '%</span>';
+  html += '      <span class="badge" style="background:rgba(59,130,246,0.14);border:1px solid rgba(59,130,246,0.35);color:var(--accent, var(--blue));font-weight:700;font-size:10px;padding:3px 9px;letter-spacing:0.4px;white-space:nowrap">BOBOT ' + wUtama + '%</span>';
   html += '    </div>';
 
   // 1.1 Card: Valuasi & Harga Wajar
@@ -2164,14 +2164,14 @@ function renderStockDossierPage(targetTicker) {
   // SUPPORTING: FAKTOR EKSTERNAL & ARUS PASAR
   var wSupporting = (res.weightsUsed.smartMoney || 0) + (res.weightsUsed.ksei || 0) + (res.weightsUsed.regime || 0);
   html += '  <div>';
-  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(139,92,246,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(139,92,246,0.22);border-left:3px solid #8b5cf6;border-radius:8px">';
+  html += '    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(139,92,246,0.10) 0%, var(--bg2) 100%);border:1px solid rgba(139,92,246,0.25);border-left:3px solid #8b5cf6;border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--text);letter-spacing:0.3px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
   html += '          <i class="ti ti-waves" style="color:#8b5cf6;font-size:15px"></i> SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
   html += '        </div>';
-  html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
+  html += '        <div style="font-size:11px;color:var(--text2);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
   html += '      </div>';
-  html += '      <span class="badge" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--text);font-weight:800;font-size:10px;padding:3px 8px;letter-spacing:0.5px">BOBOT ' + wSupporting + '%</span>';
+  html += '      <span class="badge" style="background:rgba(139,92,246,0.14);border:1px solid rgba(139,92,246,0.35);color:#7c3aed;font-weight:700;font-size:10px;padding:3px 9px;letter-spacing:0.4px;white-space:nowrap">BOBOT ' + wSupporting + '%</span>';
   html += '    </div>';
 
   // 2.1 Card: Smart Money & Bandarmology
